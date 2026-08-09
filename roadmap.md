@@ -34,7 +34,8 @@ Status: Java-native Agent Harness baseline implemented. The goal is to coordinat
 - Review and repair loop boundary. Baseline done through `ReviewGate` and `AgentRepairLoop`.
 - Declarative YAML/JSON Flow Spec parsing. Baseline done through `AgentFlowSpecParser`.
 - Artifact persistence and JDBC run store. Baseline done through `ArtifactStore`, `JdbcArtifactStore`, and `JdbcAgentRunStore`.
-- Future: external AgentWeaver CLI executor and UI run visualization.
+- Demo UI run visualization. Baseline done with Flow, Phase, Step, Artifact, Checkpoint, and Resume controls.
+- Future: external AgentWeaver CLI executor and richer graph-based run inspection.
 
 ## v3.x - Enterprise AI Operating System
 

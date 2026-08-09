@@ -118,7 +118,23 @@ ArtifactStore 保存：
 - artifact content JSON
 - created time
 
+## Demo UI
+
+`adapter-demo` 已接入 Agent Harness，可以在底部调试区的 `Agent` 标签页查看和操作一次声明式 flow 运行。
+
+- `GET /api/agent/sample-flow`：返回 demo YAML Flow Spec。
+- `POST /api/agent/start`：根据 YAML / JSON Flow Spec 创建 run 并执行到完成或人工等待节点。
+- `GET /api/agent/runs/{runId}`：读取 run state、checkpoint 和 artifact。
+- `POST /api/agent/runs/{runId}/resume`：从当前 checkpoint 继续执行，demo 中会把当前人工等待步骤标记为已完成后恢复。
+
+UI 会展示：
+
+- Flow：phase 和 step 结构。
+- Phase / Step：当前执行位置。
+- Artifact：工具步骤产物。
+- Checkpoint：每步执行后的断点。
+- Resume：人工节点或中断后的恢复按钮。
+
 ## 下一步
 
-- Demo UI 展示 Phase、Step、Artifact、Checkpoint。
 - 外部 AgentWeaver CLI executor。

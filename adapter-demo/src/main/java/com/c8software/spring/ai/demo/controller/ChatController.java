@@ -1,5 +1,15 @@
 package com.c8software.spring.ai.demo.controller;
 
+import com.c8software.spring.ai.agent.AgentArtifact;
+import com.c8software.spring.ai.agent.AgentCheckpoint;
+import com.c8software.spring.ai.agent.AgentFlowDefinition;
+import com.c8software.spring.ai.agent.AgentFlowSpecParser;
+import com.c8software.spring.ai.agent.AgentHarness;
+import com.c8software.spring.ai.agent.AgentPhase;
+import com.c8software.spring.ai.agent.AgentRunState;
+import com.c8software.spring.ai.agent.AgentRunStore;
+import com.c8software.spring.ai.agent.AgentStep;
+import com.c8software.spring.ai.agent.ArtifactStore;
 import com.c8software.spring.ai.core.definition.ToolDefinition;
 import com.c8software.spring.ai.core.definition.ToolParameter;
 import com.c8software.spring.ai.core.enterprise.EnterpriseAiOperatingSystem;
@@ -64,6 +74,14 @@ public class ChatController {
 
     private final TenantRegistry tenantRegistry;
 
+    private final AgentHarness agentHarness;
+
+    private final AgentFlowSpecParser agentFlowSpecParser;
+
+    private final AgentRunStore agentRunStore;
+
+    private final ArtifactStore artifactStore;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
     public ChatController(ToolRegistry registry, BusinessAiHub businessAiHub, McpProvisioningPlanner mcpProvisioningPlanner,
@@ -73,7 +91,11 @@ public class ChatController {
                           PromptMarketplace promptMarketplace,
                           ToolMarketplace toolMarketplace,
                           LearningFeedbackStore feedbackStore,
-                          TenantRegistry tenantRegistry) {
+                          TenantRegistry tenantRegistry,
+                          AgentHarness agentHarness,
+                          AgentFlowSpecParser agentFlowSpecParser,
+                          AgentRunStore agentRunStore,
+                          ArtifactStore artifactStore) {
         this.registry = registry;
         this.businessAiHub = businessAiHub;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
@@ -85,6 +107,10 @@ public class ChatController {
         this.toolMarketplace = toolMarketplace;
         this.feedbackStore = feedbackStore;
         this.tenantRegistry = tenantRegistry;
+        this.agentHarness = agentHarness;
+        this.agentFlowSpecParser = agentFlowSpecParser;
+        this.agentRunStore = agentRunStore;
+        this.artifactStore = artifactStore;
         seedEnterpriseDemoData();
     }
 
@@ -211,6 +237,26 @@ public class ChatController {
         return result;
     }
 
+    @GetMapping("/api/v2/status")
+    @ResponseBody
+    public Map<String, Object> v2Status() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("versionLine", "v2.x");
+        result.put("status", "BASELINE");
+        result.put("capabilities", Arrays.asList(
+                "java-native agent harness",
+                "yaml/json flow spec",
+                "phase and step execution",
+                "checkpoint persistence",
+                "artifact persistence",
+                "human waiting nodes",
+                "resume"
+        ));
+        result.put("sampleFlowEndpoint", "/api/agent/sample-flow");
+        result.put("startEndpoint", "/api/agent/start");
+        return result;
+    }
+
     @GetMapping("/api/marketplace/prompts")
     @ResponseBody
     public List<?> prompts() {
@@ -265,6 +311,51 @@ public class ChatController {
                 utterance,
                 Arrays.asList("mcp:provision:crm", "mcp:provision:messaging")
         ));
+    }
+
+    @GetMapping("/api/agent/sample-flow")
+    @ResponseBody
+    public Map<String, Object> sampleAgentFlow() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("format", "yaml");
+        result.put("spec", sampleFlowSpec());
+        return result;
+    }
+
+    @PostMapping("/api/agent/start")
+    @ResponseBody
+    public Map<String, Object> startAgent(@RequestBody Map<String, String> body) {
+        String spec = body.getOrDefault("spec", sampleFlowSpec());
+        String format = body.getOrDefault("format", "yaml");
+        AgentFlowDefinition flow = "json".equalsIgnoreCase(format)
+                ? agentFlowSpecParser.parseJson(spec)
+                : agentFlowSpecParser.parseYaml(spec);
+        AgentRunState state = agentHarness.start(flow, demoExecutionContext());
+        return agentRunDto(state, flow);
+    }
+
+    @GetMapping("/api/agent/runs/{runId}")
+    @ResponseBody
+    public Map<String, Object> agentRun(@PathVariable String runId) {
+        AgentRunState state = agentRunStore.get(runId);
+        return agentRunDto(state, null);
+    }
+
+    @PostMapping("/api/agent/runs/{runId}/resume")
+    @ResponseBody
+    public Map<String, Object> resumeAgent(@PathVariable String runId, @RequestBody Map<String, String> body) {
+        String spec = body.getOrDefault("spec", sampleFlowSpec());
+        String format = body.getOrDefault("format", "yaml");
+        AgentFlowDefinition flow = "json".equalsIgnoreCase(format)
+                ? agentFlowSpecParser.parseJson(spec)
+                : agentFlowSpecParser.parseYaml(spec);
+        AgentRunState state = agentRunStore.get(runId);
+        if (state != null && state.getCurrentStepId() != null) {
+            state.markCompleted(state.getCurrentStepId());
+            agentRunStore.save(state);
+        }
+        AgentRunState resumed = agentHarness.resume(runId, flow, demoExecutionContext());
+        return agentRunDto(resumed, flow);
     }
 
     @PostMapping("/api/chat")
@@ -330,6 +421,116 @@ public class ChatController {
                 new LinkedHashSet<>(Arrays.asList("demo:tool:invoke", "finance:read")),
                 Instant.now()
         );
+    }
+
+    private String sampleFlowSpec() {
+        return "id: demo-agent-flow\n"
+                + "name: Demo Agent Flow\n"
+                + "phases:\n"
+                + "  - id: collect\n"
+                + "    name: Collect Context\n"
+                + "    steps:\n"
+                + "      - id: query-weather\n"
+                + "        name: Query Weather\n"
+                + "        type: tool\n"
+                + "        toolName: mock_query_weather\n"
+                + "        arguments:\n"
+                + "          city: Shanghai\n"
+                + "      - id: human-confirm\n"
+                + "        name: Human Confirm\n"
+                + "        type: human\n"
+                + "  - id: execute\n"
+                + "    name: Execute Governed Tool\n"
+                + "    steps:\n"
+                + "      - id: query-balance\n"
+                + "        name: Query Balance\n"
+                + "        type: tool\n"
+                + "        toolName: mock_query_user_balance\n"
+                + "        arguments:\n"
+                + "          userId: '1001'\n"
+                + "      - id: review\n"
+                + "        name: Review Result\n"
+                + "        type: review\n"
+                + "        maxRepairAttempts: 1\n";
+    }
+
+    private Map<String, Object> agentRunDto(AgentRunState state, AgentFlowDefinition flow) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        if (state == null) {
+            dto.put("found", false);
+            return dto;
+        }
+        dto.put("found", true);
+        dto.put("runId", state.getRunId());
+        dto.put("flowId", state.getFlowId());
+        dto.put("status", state.getStatus());
+        dto.put("currentPhaseId", state.getCurrentPhaseId());
+        dto.put("currentStepId", state.getCurrentStepId());
+        dto.put("errorMessage", state.getErrorMessage());
+        dto.put("completedStepIds", state.getCompletedStepIds());
+        dto.put("attributes", state.getAttributes());
+        dto.put("createdAt", state.getCreatedAt());
+        dto.put("updatedAt", state.getUpdatedAt());
+        dto.put("checkpoints", checkpointDtos(state.getCheckpoints()));
+        dto.put("artifacts", artifactDtos(artifactStore.listByRunId(state.getRunId())));
+        if (flow != null) {
+            dto.put("flow", flowDto(flow));
+        }
+        return dto;
+    }
+
+    private Map<String, Object> flowDto(AgentFlowDefinition flow) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("id", flow.getId());
+        dto.put("name", flow.getName());
+        List<Map<String, Object>> phases = new ArrayList<>();
+        for (AgentPhase phase : flow.getPhases()) {
+            Map<String, Object> phaseDto = new LinkedHashMap<>();
+            phaseDto.put("id", phase.getId());
+            phaseDto.put("name", phase.getName());
+            List<Map<String, Object>> steps = new ArrayList<>();
+            for (AgentStep step : phase.getSteps()) {
+                Map<String, Object> stepDto = new LinkedHashMap<>();
+                stepDto.put("id", step.getId());
+                stepDto.put("name", step.getName());
+                stepDto.put("type", step.getType());
+                stepDto.put("toolName", step.getToolName());
+                stepDto.put("maxRepairAttempts", step.getMaxRepairAttempts());
+                steps.add(stepDto);
+            }
+            phaseDto.put("steps", steps);
+            phases.add(phaseDto);
+        }
+        dto.put("phases", phases);
+        return dto;
+    }
+
+    private List<Map<String, Object>> checkpointDtos(List<AgentCheckpoint> checkpoints) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AgentCheckpoint checkpoint : checkpoints) {
+            Map<String, Object> dto = new LinkedHashMap<>();
+            dto.put("id", checkpoint.getId());
+            dto.put("phaseId", checkpoint.getPhaseId());
+            dto.put("stepId", checkpoint.getStepId());
+            dto.put("status", checkpoint.getStatus());
+            dto.put("createdAt", checkpoint.getCreatedAt());
+            result.add(dto);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> artifactDtos(List<AgentArtifact> artifacts) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AgentArtifact artifact : artifacts) {
+            Map<String, Object> dto = new LinkedHashMap<>();
+            dto.put("id", artifact.getId());
+            dto.put("stepId", artifact.getStepId());
+            dto.put("type", artifact.getType());
+            dto.put("content", artifact.getContent());
+            dto.put("createdAt", artifact.getCreatedAt());
+            result.add(dto);
+        }
+        return result;
     }
 
     private Map<String, Object> toToolDto(ToolDefinition definition) {

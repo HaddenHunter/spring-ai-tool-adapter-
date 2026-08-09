@@ -140,11 +140,16 @@
         <button id="tabSchema" onclick="showDebug('schema')">Tool Schema</button>
         <button id="tabAudit" onclick="showDebug('audit')">Audit Logs</button>
         <button id="tabReplay" onclick="showDebug('replay')">Replay</button>
+        <button id="tabAgent" onclick="showDebug('agent')">Agent</button>
         <button id="tabMarket" onclick="showDebug('market')">Market</button>
         <button id="tabFeedback" onclick="showDebug('feedback')">Feedback</button>
       </div>
     </div>
     <div class="debug-body">
+      <div id="agentActions" style="display:none;margin-bottom:10px">
+        <button onclick="startAgent()">Start Agent</button>
+        <button class="secondary" onclick="resumeAgent()">Resume</button>
+      </div>
       <pre id="debugOutput"></pre>
     </div>
   </section>
@@ -152,12 +157,14 @@
 
 <script>
 let tools = [];
-let debugCache = {prompt:'', schema:'', audit:'', replay:'', market:'', feedback:''};
+let currentAgentRunId = '';
+let currentAgentSpec = '';
+let debugCache = {prompt:'', schema:'', audit:'', replay:'', agent:'', market:'', feedback:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
 
 async function refreshAll(){
-  await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadV1Status(), loadV3Status(), loadDebug()]);
+  await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadV1Status(), loadV2Status(), loadV3Status(), loadDebug()]);
   showDebug('prompt');
 }
 
@@ -193,17 +200,31 @@ async function loadV1Status(){
   document.getElementById('v1Status').textContent = data.status;
 }
 
+async function loadV2Status(){
+  const data = await fetch('/api/v2/status').then(r=>r.json());
+  let row = document.getElementById('v2Row');
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'v2Row';
+    row.className = 'stat';
+    row.innerHTML = '<span>v2 Status</span><b id="v2Status">-</b>';
+    document.getElementById('v1Status').parentElement.insertAdjacentElement('afterend', row);
+  }
+  document.getElementById('v2Status').textContent = data.status;
+}
+
 async function loadV3Status(){
   const data = await fetch('/api/v3/status').then(r=>r.json());
   document.getElementById('v3Status').textContent = data.status;
 }
 
 async function loadDebug(){
-  const [prompt, schema, audit, replay, prompts, marketTools, feedback] = await Promise.all([
+  const [prompt, schema, audit, replay, sampleFlow, prompts, marketTools, feedback] = await Promise.all([
     fetch('/api/debug/prompt').then(r=>r.json()),
     fetch('/api/debug/schema').then(r=>r.json()),
     fetch('/api/audit/logs').then(r=>r.json()),
     fetch('/api/replay/demo-session').then(r=>r.json()),
+    fetch('/api/agent/sample-flow').then(r=>r.json()),
     fetch('/api/marketplace/prompts').then(r=>r.json()),
     fetch('/api/marketplace/tools').then(r=>r.json()),
     fetch('/api/learning/feedback').then(r=>r.json())
@@ -212,15 +233,66 @@ async function loadDebug(){
   debugCache.schema = pretty(schema);
   debugCache.audit = pretty(audit);
   debugCache.replay = pretty(replay);
+  currentAgentSpec = sampleFlow.spec;
+  debugCache.agent = `Sample Flow Spec:\n\n${sampleFlow.spec}\n\nRun State:\n${currentAgentRunId ? 'Use Resume or Start Agent to refresh.' : 'No run started.'}`;
   debugCache.market = pretty({prompts: prompts, tools: marketTools});
   debugCache.feedback = pretty(feedback);
 }
 
 function showDebug(kind){
-  ['Prompt','Schema','Audit','Replay','Market','Feedback'].forEach(name => document.getElementById(`tab${name}`).classList.remove('active'));
+  ['Prompt','Schema','Audit','Replay','Agent','Market','Feedback'].forEach(name => document.getElementById(`tab${name}`).classList.remove('active'));
   const tabName = kind === 'market' ? 'Market' : kind.charAt(0).toUpperCase()+kind.slice(1);
   document.getElementById(`tab${tabName}`).classList.add('active');
+  document.getElementById('agentActions').style.display = kind === 'agent' ? 'block' : 'none';
   document.getElementById('debugOutput').textContent = debugCache[kind] || '';
+}
+
+function renderAgentRun(data){
+  currentAgentRunId = data.runId || currentAgentRunId;
+  const flow = data.flow ? pretty(data.flow) : '(flow supplied by current sample spec)';
+  debugCache.agent = [
+    `Run: ${data.runId}`,
+    `Status: ${data.status}`,
+    `Current Phase: ${data.currentPhaseId || '-'}`,
+    `Current Step: ${data.currentStepId || '-'}`,
+    `Completed: ${(data.completedStepIds || []).join(', ') || '-'}`,
+    '',
+    'Flow:',
+    flow,
+    '',
+    'Checkpoints:',
+    pretty(data.checkpoints || []),
+    '',
+    'Artifacts:',
+    pretty(data.artifacts || [])
+  ].join('\n');
+  document.getElementById('taskStatus').textContent = data.status || 'READY';
+  document.getElementById('taskStatus').className = `status ${data.status === 'COMPLETED' ? 'done' : data.status === 'RUNNING' ? 'running' : 'ready'}`;
+  document.getElementById('sessionId').textContent = data.runId || 'demo-session';
+  document.getElementById('lastStatus').textContent = data.status || 'idle';
+  showDebug('agent');
+}
+
+async function startAgent(){
+  const res = await fetch('/api/agent/start',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
+  }).then(r=>r.json());
+  renderAgentRun(res);
+}
+
+async function resumeAgent(){
+  if (!currentAgentRunId) {
+    await startAgent();
+    return;
+  }
+  const res = await fetch(`/api/agent/runs/${currentAgentRunId}/resume`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
+  }).then(r=>r.json());
+  renderAgentRun(res);
 }
 
 function syncArgumentTemplate(){

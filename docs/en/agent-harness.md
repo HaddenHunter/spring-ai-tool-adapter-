@@ -118,7 +118,23 @@ ArtifactStore persists:
 - artifact content JSON
 - created time
 
+## Demo UI
+
+`adapter-demo` now connects to Agent Harness. Open the bottom debug area and choose the `Agent` tab to inspect and operate a declarative flow run.
+
+- `GET /api/agent/sample-flow`: returns the demo YAML Flow Spec.
+- `POST /api/agent/start`: creates a run from a YAML / JSON Flow Spec and executes until completion or a human waiting node.
+- `GET /api/agent/runs/{runId}`: reads run state, checkpoints, and artifacts.
+- `POST /api/agent/runs/{runId}/resume`: resumes from the current checkpoint. In the demo, the current human waiting step is marked completed before resuming.
+
+The UI shows:
+
+- Flow: phase and step structure.
+- Phase / Step: current execution position.
+- Artifact: tool step outputs.
+- Checkpoint: resumable execution points after steps.
+- Resume: button for human nodes or interrupted runs.
+
 ## Next Steps
 
-- Demo UI for Phase, Step, Artifact, and Checkpoint.
 - External AgentWeaver CLI executor.
