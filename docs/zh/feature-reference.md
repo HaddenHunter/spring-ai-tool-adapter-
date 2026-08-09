@@ -28,6 +28,7 @@ LLM / Agent
 10. 多模型适配
 11. Semantic MCP provisioning
 12. Codex Skill 自动接入旧系统
+13. P0 企业治理增强：持久化审计、审批、幂等、可见性过滤
 
 ## 2. 注解体系
 
@@ -159,10 +160,13 @@ DefaultToolExecutor
 3. 参数类型转换
 4. 权限校验
 5. 参数脱敏
-6. MethodHandle 调用业务方法
-7. 生成 `ToolResult`
-8. 写入审计记录
-9. 捕获并包装异常
+6. 高风险审批
+7. 幂等命中检查
+8. MethodHandle 调用业务方法
+9. 幂等结果存储
+10. 生成 `ToolResult`
+11. 写入审计记录
+12. 捕获并包装异常
 
 ## 6. 权限控制
 
@@ -234,6 +238,14 @@ AuditLogger
 AsyncAuditLogger
 ```
 
+数据库实现：
+
+```java
+JdbcAuditLogger
+```
+
+当 Spring 容器中存在 `DataSource` 时，自动配置会优先创建 `JdbcAuditLogger`，并初始化 `ai_tool_audit_log` 表。
+
 审计字段：
 
 - `traceId`
@@ -255,6 +267,40 @@ AsyncAuditLogger
 - 可以追踪谁在什么时候调用了什么工具
 - 可以对比执行前后的上下文状态
 - 可以支持事后回放和合规检查
+
+查询能力：
+
+- `traceId`
+- `toolName`
+- `callerUser`
+- `tenantId`
+- `status`
+- `limit`
+
+## 8.1 审批与幂等
+
+审批：
+
+- `ToolApprovalManager` 负责判断高风险工具是否能执行。
+- `HumanInTheLoop` 是企业审批系统接入点。
+- 自动配置默认使用安全拒绝实现，未接入审批时不执行高风险工具。
+
+幂等：
+
+- `@AiToolIdempotent` 声明幂等 key。
+- `IdempotencyKeyResolver` 解析 key。
+- `IdempotencyStore` 存储成功结果。
+- 默认使用内存存储，生产建议替换为 Redis / DB。
+
+## 8.2 Tool 可见性过滤
+
+`ToolVisibilityFilter` 控制工具是否进入工具列表和 Schema。
+
+默认策略：
+
+- `PUBLIC` 可见
+- `INTERNAL` 需要 `tool:internal` 权限
+- `DEPRECATED` 不可见
 
 ## 9. Session + Context
 

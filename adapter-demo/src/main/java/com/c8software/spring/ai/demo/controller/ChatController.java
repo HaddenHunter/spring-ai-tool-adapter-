@@ -10,6 +10,7 @@ import com.c8software.spring.ai.core.mcp.McpProvisioningPlanner;
 import com.c8software.spring.ai.core.mcp.McpSemanticRequest;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.c8software.spring.ai.core.schema.OpenAIFunctionSchemaConverter;
+import com.c8software.spring.ai.core.visibility.ToolVisibilityFilter;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,12 +37,16 @@ public class ChatController {
 
     private final McpProvisioningPlanner mcpProvisioningPlanner;
 
+    private final ToolVisibilityFilter visibilityFilter;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
-    public ChatController(ToolRegistry registry, ToolExecutor executor, McpProvisioningPlanner mcpProvisioningPlanner) {
+    public ChatController(ToolRegistry registry, ToolExecutor executor, McpProvisioningPlanner mcpProvisioningPlanner,
+                          ToolVisibilityFilter visibilityFilter) {
         this.registry = registry;
         this.executor = executor;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
+        this.visibilityFilter = visibilityFilter;
     }
 
     @GetMapping({"/", "/chat"})
@@ -53,7 +58,7 @@ public class ChatController {
     @ResponseBody
     public List<Map<String, Object>> tools() {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (ToolDefinition definition : registry.listAll()) {
+        for (ToolDefinition definition : visibilityFilter.filter(registry.listAll(), demoExecutionContext())) {
             result.add(toToolDto(definition));
         }
         return result;
@@ -63,7 +68,7 @@ public class ChatController {
     @ResponseBody
     public List<Map<String, Object>> schemas() {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (ToolDefinition definition : registry.listAll()) {
+        for (ToolDefinition definition : visibilityFilter.filter(registry.listAll(), demoExecutionContext())) {
             result.add(schemaConverter.convert(definition));
         }
         return result;
@@ -77,7 +82,7 @@ public class ChatController {
         builder.append("Use only audited tools exposed by the adapter.\n");
         builder.append("Preserve confirmed user choices in structured context.\n");
         builder.append("Available tools:\n");
-        for (ToolDefinition definition : registry.listAll()) {
+        for (ToolDefinition definition : visibilityFilter.filter(registry.listAll(), demoExecutionContext())) {
             builder.append("- ")
                     .append(definition.getName())
                     .append(": ")
@@ -142,6 +147,16 @@ public class ChatController {
         emitter.send(SseEmitter.event().name("message").data("demo stream ready"));
         emitter.complete();
         return emitter;
+    }
+
+    private ExecutionContext demoExecutionContext() {
+        return new ExecutionContext(
+                "demo-user",
+                "demo-tenant",
+                UUID.randomUUID().toString(),
+                new LinkedHashSet<>(Arrays.asList("demo:tool:invoke", "finance:read")),
+                Instant.now()
+        );
     }
 
     private Map<String, Object> toToolDto(ToolDefinition definition) {

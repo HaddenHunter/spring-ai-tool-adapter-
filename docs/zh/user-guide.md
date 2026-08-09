@@ -222,11 +222,35 @@ ToolResult result = toolExecutor.execute(
 JSON 参数
  -> 参数绑定
  -> 权限校验
+ -> 高风险审批
+ -> 幂等命中检查
  -> 参数脱敏
  -> MethodHandle 调用业务方法
+ -> 幂等结果存储
  -> 审计记录
  -> 返回 ToolResult
 ```
+
+### 7.1 Human-in-the-loop 审批
+
+`HIGH` 和 `CRITICAL` 风险工具会通过 `ToolApprovalManager` 触发审批。
+
+默认自动配置使用安全默认值：如果没有提供真实 `HumanInTheLoop` 实现，高风险工具会返回审批未通过，不会自动执行。
+
+业务系统可以提供自己的 Bean：
+
+```java
+@Bean
+public HumanInTheLoop humanInTheLoop() {
+    return request -> approvalService.requestApproval(request);
+}
+```
+
+### 7.2 幂等保护
+
+带 `@AiToolIdempotent` 的工具会使用 `IdempotencyStore` 缓存成功结果。重复调用命中同一个 key 时，框架直接返回历史结果，避免重复退款、重复发券或重复创建订单。
+
+默认实现是内存存储，生产环境建议替换为 Redis 或数据库实现。
 
 ## 8. 生成 Tool Schema
 
@@ -357,8 +381,22 @@ Use $spring-ai-adapt-existing-system to analyze this Spring project and generate
 | `UserChoiceTracker` | 自定义用户选择持久化 |
 | `McpCapabilityCatalog` | 自定义 MCP 能力目录 |
 | `McpSemanticMatcher` | 自定义语义匹配器 |
+| `ToolApprovalManager` | 自定义高风险工具审批策略 |
+| `HumanInTheLoop` | 接入企业审批系统 |
+| `IdempotencyStore` | 接入 Redis / DB 幂等存储 |
+| `ToolVisibilityFilter` | 控制工具是否对 LLM 可见 |
 
-## 13. 生产落地建议
+## 13. 持久化审计日志
+
+默认没有数据库时使用 `AsyncAuditLogger`。当 Spring 容器存在 `DataSource` 时，自动配置会启用 `JdbcAuditLogger` 并创建 `ai_tool_audit_log` 表。
+
+查询接口：
+
+```text
+GET /api/audit/logs?traceId=...&toolName=...&callerUser=...&tenantId=...&status=...&limit=100
+```
+
+## 14. 生产落地建议
 
 - 审计日志不要只放内存，生产环境应落库。
 - 权限校验应接入 Spring Security、RBAC、租户和数据权限。

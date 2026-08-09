@@ -23,4 +23,31 @@ public class AsyncAuditLogger implements AuditLogger {
     public List<AuditRecord> recent() {
         return Collections.unmodifiableList(new ArrayList<AuditRecord>(records));
     }
+
+    public List<AuditRecord> query(AuditQuery query) {
+        List<AuditRecord> result = new ArrayList<AuditRecord>();
+        int limit = query == null ? 100 : query.getLimit();
+        for (int i = records.size() - 1; i >= 0 && result.size() < limit; i--) {
+            AuditRecord record = records.get(i);
+            if (matches(query, record)) {
+                result.add(record);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    private boolean matches(AuditQuery query, AuditRecord record) {
+        if (query == null) {
+            return true;
+        }
+        return match(query.getTraceId(), record.getTraceId())
+                && match(query.getToolName(), record.getToolName())
+                && match(query.getCallerUser(), record.getCallerUser())
+                && match(query.getTenantId(), record.getTenantId())
+                && match(query.getStatus(), record.getStatus());
+    }
+
+    private boolean match(String expected, String actual) {
+        return expected == null || expected.trim().isEmpty() || expected.equals(actual);
+    }
 }

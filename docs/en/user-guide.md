@@ -221,11 +221,35 @@ Execution flow:
 JSON arguments
  -> argument binding
  -> permission check
+ -> high-risk approval
+ -> idempotency hit check
  -> sensitive masking
  -> MethodHandle business invocation
+ -> idempotency result storage
  -> audit record
  -> ToolResult
 ```
+
+### 7.1 Human-in-the-loop Approval
+
+`HIGH` and `CRITICAL` risk tools trigger `ToolApprovalManager`.
+
+The default auto-configuration is safe by default: if no real `HumanInTheLoop` implementation is provided, high-risk tools are rejected with an approval-required status instead of being executed silently.
+
+Applications can provide their own Bean:
+
+```java
+@Bean
+public HumanInTheLoop humanInTheLoop() {
+    return request -> approvalService.requestApproval(request);
+}
+```
+
+### 7.2 Idempotency Protection
+
+Tools annotated with `@AiToolIdempotent` use `IdempotencyStore` to cache successful results. When a repeated call uses the same key, the framework returns the previous result instead of invoking the business method again.
+
+The default store is in-memory. Production deployments should replace it with Redis or a database.
 
 ## 8. Tool Schema Generation
 
@@ -356,8 +380,22 @@ Use $spring-ai-adapt-existing-system to analyze this Spring project and generate
 | `UserChoiceTracker` | Customize user choice persistence |
 | `McpCapabilityCatalog` | Provide an enterprise MCP capability catalog |
 | `McpSemanticMatcher` | Replace semantic matching logic |
+| `ToolApprovalManager` | Customize high-risk approval policy |
+| `HumanInTheLoop` | Integrate enterprise approval systems |
+| `IdempotencyStore` | Integrate Redis / DB idempotency storage |
+| `ToolVisibilityFilter` | Control whether tools are visible to the LLM |
 
-## 13. Production Recommendations
+## 13. Persistent Audit Logging
+
+Without a database, the framework uses `AsyncAuditLogger`. When a Spring `DataSource` exists, auto-configuration enables `JdbcAuditLogger` and creates the `ai_tool_audit_log` table.
+
+Query endpoint:
+
+```text
+GET /api/audit/logs?traceId=...&toolName=...&callerUser=...&tenantId=...&status=...&limit=100
+```
+
+## 14. Production Recommendations
 
 - Store audit logs in durable infrastructure instead of memory.
 - Integrate permission checks with Spring Security, RBAC, tenants, and data scopes.

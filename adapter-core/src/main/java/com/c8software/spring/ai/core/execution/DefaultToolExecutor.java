@@ -2,6 +2,10 @@ package com.c8software.spring.ai.core.execution;
 
 import com.c8software.spring.ai.core.audit.AuditLogger;
 import com.c8software.spring.ai.core.audit.AuditRecord;
+import com.c8software.spring.ai.core.approval.ApprovalDecision;
+import com.c8software.spring.ai.core.approval.AutoApproveHumanInTheLoop;
+import com.c8software.spring.ai.core.approval.DefaultToolApprovalManager;
+import com.c8software.spring.ai.core.approval.ToolApprovalManager;
 import com.c8software.spring.ai.core.config.AiToolProperties;
 import com.c8software.spring.ai.core.context.ContextSnapshot;
 import com.c8software.spring.ai.core.context.ConversationContextHolder;
@@ -9,6 +13,10 @@ import com.c8software.spring.ai.core.definition.ToolDefinition;
 import com.c8software.spring.ai.core.definition.ToolParameter;
 import com.c8software.spring.ai.core.exception.AiToolException;
 import com.c8software.spring.ai.core.exception.AiToolExecutionException;
+import com.c8software.spring.ai.core.idempotency.DefaultIdempotencyKeyResolver;
+import com.c8software.spring.ai.core.idempotency.IdempotencyKeyResolver;
+import com.c8software.spring.ai.core.idempotency.IdempotencyStore;
+import com.c8software.spring.ai.core.idempotency.InMemoryIdempotencyStore;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.c8software.spring.ai.core.security.PermissionChecker;
 import com.c8software.spring.ai.core.security.SensitiveMasker;
@@ -29,6 +37,9 @@ public class DefaultToolExecutor implements ToolExecutor {
     private final AuditLogger auditLogger;
     private final ObjectMapper objectMapper;
     private final AiToolProperties properties;
+    private final ToolApprovalManager approvalManager;
+    private final IdempotencyStore idempotencyStore;
+    private final IdempotencyKeyResolver idempotencyKeyResolver;
 
     public DefaultToolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
                                SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
@@ -39,12 +50,25 @@ public class DefaultToolExecutor implements ToolExecutor {
     public DefaultToolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
                                SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
                                ObjectMapper objectMapper, AiToolProperties properties) {
+        this(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper, properties,
+                new DefaultToolApprovalManager(new AutoApproveHumanInTheLoop()),
+                new InMemoryIdempotencyStore(), new DefaultIdempotencyKeyResolver());
+    }
+
+    public DefaultToolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
+                               SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
+                               ObjectMapper objectMapper, AiToolProperties properties,
+                               ToolApprovalManager approvalManager, IdempotencyStore idempotencyStore,
+                               IdempotencyKeyResolver idempotencyKeyResolver) {
         this.registry = registry;
         this.permissionChecker = permissionChecker;
         this.sensitiveMasker = sensitiveMasker;
         this.auditLogger = auditLogger;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.approvalManager = approvalManager;
+        this.idempotencyStore = idempotencyStore;
+        this.idempotencyKeyResolver = idempotencyKeyResolver;
     }
 
     public ToolResult execute(String toolName, String jsonArguments, ExecutionContext executionContext) {
@@ -57,10 +81,25 @@ public class DefaultToolExecutor implements ToolExecutor {
         try {
             permissionChecker.check(definition, executionContext);
             Object[] args = bindArguments(definition, jsonArguments);
+            String maskedInput = maskInput(definition, args);
+            ApprovalDecision approval = approvalManager.approve(definition, executionContext, maskedInput);
+            if (!approval.isApproved()) {
+                throw new AiToolExecutionException("AIT_APPROVAL_REJECTED",
+                        "Tool approval rejected: " + approval.getStatus());
+            }
+            String idempotencyKey = idempotencyKey(definition, executionContext, args);
+            ToolResult cached = cachedResult(definition, idempotencyKey);
+            if (cached != null) {
+                long cost = System.currentTimeMillis() - start;
+                audit(definition, executionContext, maskedInput, String.valueOf(cached.getData()),
+                        cost, "IDEMPOTENT_HIT", null, beforeSnapshot);
+                return cached;
+            }
             Object data = definition.getMethodHandle().bindTo(definition.getTargetBean()).invokeWithArguments(args);
             long cost = System.currentTimeMillis() - start;
             ToolResult result = ToolResult.success(data, cost);
-            audit(definition, executionContext, maskInput(definition, args), String.valueOf(data), cost, "SUCCESS", null, beforeSnapshot);
+            storeResult(definition, idempotencyKey, result);
+            audit(definition, executionContext, maskedInput, String.valueOf(data), cost, "SUCCESS", null, beforeSnapshot);
             return result;
         } catch (AiToolException ex) {
             long cost = System.currentTimeMillis() - start;
@@ -119,5 +158,26 @@ public class DefaultToolExecutor implements ToolExecutor {
 
     private String snapshotHash(ContextSnapshot snapshot) {
         return snapshot == null ? null : String.valueOf(snapshot.toString().hashCode());
+    }
+
+    private String idempotencyKey(ToolDefinition definition, ExecutionContext context, Object[] args) {
+        if (!definition.getMetadata().isIdempotent()) {
+            return null;
+        }
+        String tenant = context == null ? "" : context.getTenantId();
+        return tenant + ":" + definition.getName() + ":" + idempotencyKeyResolver.resolve(definition, args);
+    }
+
+    private ToolResult cachedResult(ToolDefinition definition, String key) {
+        if (!definition.getMetadata().isIdempotent() || key == null) {
+            return null;
+        }
+        return idempotencyStore.get(definition.getName(), key);
+    }
+
+    private void storeResult(ToolDefinition definition, String key, ToolResult result) {
+        if (definition.getMetadata().isIdempotent() && key != null && result != null && result.isSuccess()) {
+            idempotencyStore.put(definition.getName(), key, result);
+        }
     }
 }

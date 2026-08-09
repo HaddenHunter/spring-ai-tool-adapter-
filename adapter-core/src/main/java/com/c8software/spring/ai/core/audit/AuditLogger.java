@@ -9,4 +9,9 @@ public interface AuditLogger {
 
     /** Returns recent records for demo and tests. */
     List<AuditRecord> recent();
+
+    /** Queries records by optional filters. */
+    default List<AuditRecord> query(AuditQuery query) {
+        return recent();
+    }
 }

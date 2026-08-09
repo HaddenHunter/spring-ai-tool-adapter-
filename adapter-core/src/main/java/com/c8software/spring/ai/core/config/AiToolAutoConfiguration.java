@@ -2,14 +2,22 @@ package com.c8software.spring.ai.core.config;
 
 import com.c8software.spring.ai.core.audit.AsyncAuditLogger;
 import com.c8software.spring.ai.core.audit.AuditLogger;
-import com.c8software.spring.ai.core.execution.DefaultToolExecutor;
+import com.c8software.spring.ai.core.audit.JdbcAuditLogger;
+import com.c8software.spring.ai.core.approval.DefaultToolApprovalManager;
+import com.c8software.spring.ai.core.approval.ManualApprovalRequiredHumanInTheLoop;
+import com.c8software.spring.ai.core.approval.ToolApprovalManager;
 import com.c8software.spring.ai.core.context.ContextCompressor;
 import com.c8software.spring.ai.core.context.ConversationSessionStore;
 import com.c8software.spring.ai.core.context.DefaultContextCompressor;
 import com.c8software.spring.ai.core.context.DefaultUserChoiceTracker;
 import com.c8software.spring.ai.core.context.InMemoryConversationSessionStore;
 import com.c8software.spring.ai.core.context.UserChoiceTracker;
+import com.c8software.spring.ai.core.execution.DefaultToolExecutor;
 import com.c8software.spring.ai.core.execution.ToolExecutor;
+import com.c8software.spring.ai.core.idempotency.DefaultIdempotencyKeyResolver;
+import com.c8software.spring.ai.core.idempotency.IdempotencyKeyResolver;
+import com.c8software.spring.ai.core.idempotency.IdempotencyStore;
+import com.c8software.spring.ai.core.idempotency.InMemoryIdempotencyStore;
 import com.c8software.spring.ai.core.mcp.DefaultMcpProvisioningPlanner;
 import com.c8software.spring.ai.core.mcp.DefaultMcpSemanticMatcher;
 import com.c8software.spring.ai.core.mcp.InMemoryMcpCapabilityCatalog;
@@ -24,11 +32,18 @@ import com.c8software.spring.ai.core.security.DefaultPermissionChecker;
 import com.c8software.spring.ai.core.security.DefaultSensitiveMasker;
 import com.c8software.spring.ai.core.security.PermissionChecker;
 import com.c8software.spring.ai.core.security.SensitiveMasker;
+import com.c8software.spring.ai.core.orchestration.HumanInTheLoop;
+import com.c8software.spring.ai.core.visibility.DefaultToolVisibilityFilter;
+import com.c8software.spring.ai.core.visibility.ToolVisibilityFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
 
 /** Default Spring Boot configuration for the adapter core. */
 @Configuration
@@ -67,6 +82,15 @@ public class AiToolAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBean(DataSource.class)
+    public AuditLogger jdbcAuditLogger(DataSource dataSource) {
+        JdbcAuditLogger logger = new JdbcAuditLogger(new JdbcTemplate(dataSource));
+        logger.initializeSchema();
+        return logger;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public AuditLogger auditLogger() {
         return new AsyncAuditLogger();
     }
@@ -91,6 +115,36 @@ public class AiToolAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public HumanInTheLoop humanInTheLoop() {
+        return new ManualApprovalRequiredHumanInTheLoop();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ToolApprovalManager toolApprovalManager(HumanInTheLoop humanInTheLoop) {
+        return new DefaultToolApprovalManager(humanInTheLoop);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IdempotencyStore idempotencyStore() {
+        return new InMemoryIdempotencyStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IdempotencyKeyResolver idempotencyKeyResolver() {
+        return new DefaultIdempotencyKeyResolver();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ToolVisibilityFilter toolVisibilityFilter() {
+        return new DefaultToolVisibilityFilter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public McpCapabilityCatalog mcpCapabilityCatalog() {
         return new InMemoryMcpCapabilityCatalog();
     }
@@ -111,7 +165,10 @@ public class AiToolAutoConfiguration {
     @ConditionalOnMissingBean
     public ToolExecutor toolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
                                      SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
-                                     ObjectMapper objectMapper, AiToolProperties properties) {
-        return new DefaultToolExecutor(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper, properties);
+                                     ObjectMapper objectMapper, AiToolProperties properties,
+                                     ToolApprovalManager approvalManager, IdempotencyStore idempotencyStore,
+                                     IdempotencyKeyResolver idempotencyKeyResolver) {
+        return new DefaultToolExecutor(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper,
+                properties, approvalManager, idempotencyStore, idempotencyKeyResolver);
     }
 }

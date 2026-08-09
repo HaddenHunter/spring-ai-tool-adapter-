@@ -28,6 +28,7 @@ Core areas:
 10. multi-model schema adapters
 11. semantic MCP provisioning
 12. Codex skill for existing systems
+13. P0 enterprise governance: persistent audit, approval, idempotency, and visibility filtering
 
 ## 2. Annotation System
 
@@ -158,11 +159,14 @@ Execution steps:
 2. Deserialize JSON arguments.
 3. Convert Java argument types.
 4. Check permission.
-5. Mask sensitive values.
-6. Invoke business method through `MethodHandle`.
-7. Produce `ToolResult`.
-8. Write audit record.
-9. Wrap exceptions.
+5. Request high-risk approval.
+6. Check idempotency hit.
+7. Mask sensitive values.
+8. Invoke business method through `MethodHandle`.
+9. Store idempotent result.
+10. Produce `ToolResult`.
+11. Write audit record.
+12. Wrap exceptions.
 
 ## 6. Permission Control
 
@@ -226,6 +230,14 @@ Default implementation:
 AsyncAuditLogger
 ```
 
+Database implementation:
+
+```java
+JdbcAuditLogger
+```
+
+When a Spring `DataSource` exists, auto-configuration prefers `JdbcAuditLogger` and initializes the `ai_tool_audit_log` table.
+
 Audit fields:
 
 - `traceId`
@@ -250,6 +262,40 @@ Audit records support:
 - input/output summary hashes
 - context state before and after execution
 - replay and compliance investigation
+
+Query filters:
+
+- `traceId`
+- `toolName`
+- `callerUser`
+- `tenantId`
+- `status`
+- `limit`
+
+## 8.1 Approval And Idempotency
+
+Approval:
+
+- `ToolApprovalManager` decides whether a high-risk tool can run.
+- `HumanInTheLoop` is the enterprise approval integration point.
+- Auto-configuration uses a safe rejecting default; high-risk tools do not execute until a real approval implementation is configured.
+
+Idempotency:
+
+- `@AiToolIdempotent` declares the key expression.
+- `IdempotencyKeyResolver` resolves the key.
+- `IdempotencyStore` stores successful results.
+- The default store is in-memory; production deployments should use Redis or a database.
+
+## 8.2 Tool Visibility Filtering
+
+`ToolVisibilityFilter` controls whether tools appear in tool lists and schemas.
+
+Default policy:
+
+- `PUBLIC` is visible.
+- `INTERNAL` requires `tool:internal`.
+- `DEPRECATED` is hidden.
 
 ## 9. Session And Context
 

@@ -22,6 +22,13 @@ We don't just expose methods to LLMs. We annotate business intent, risk, and tru
 
 Tool annotations describe what can be called. Governance annotations describe who may call it, how risky it is, how it is audited, which parameters are sensitive, whether calls are idempotent, whether an action is reversible, and how results bind into conversation context.
 
+## Enterprise P0 Governance
+
+- Persistent audit logging through `JdbcAuditLogger` when a `DataSource` is available.
+- Human-in-the-loop approval gate for `HIGH` and `CRITICAL` risk tools.
+- Idempotency protection for tools annotated with `@AiToolIdempotent`.
+- Visibility filtering so `INTERNAL` and `DEPRECATED` tools do not pollute LLM schemas.
+
 ## Semantic MCP Skills
 
 The adapter can turn natural-language integration needs into an MCP provisioning plan. The default implementation matches semantic capability tags and returns risk, permission, and approval status. It does not directly install external MCP servers; enterprise implementations can replace the catalog and matcher through SPI.
