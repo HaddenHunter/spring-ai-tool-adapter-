@@ -131,6 +131,15 @@ Demo UI supports both English and Chinese:
 
 This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Codex skill for teams adopting the framework in an existing Spring application. It guides Codex to scan current services, generate governed `@AiTool` facades, bind session context, add semantic MCP provisioning plans, and create tests.
 
+## Promotion Kit
+
+Ready-to-use launch material is available under `docs/promo`:
+
+- [Chinese Launch Kit](docs/promo/launch-kit-zh.md)
+- [English Launch Kit](docs/promo/launch-kit-en.md)
+- [Screenshot Guide](docs/promo/screenshot-guide.md)
+- [Social Posts](docs/promo/social-posts.md)
+
 ## Product Direction
 
 - v0.x: Tool Adapter covering tool registration, schema, execution, audit, and Chat UI.
