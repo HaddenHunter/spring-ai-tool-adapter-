@@ -25,12 +25,14 @@ Status: baseline implemented. The goal is to turn tools into governed business c
 
 ## v2.x - Tasks and Agents
 
-Goal: coordinate longer-running work beyond one chat turn.
+Status: Java-native Agent Harness baseline implemented. The goal is to coordinate longer-running work beyond one chat turn.
 
-- Workflow orchestration with DAG tasks and rollback hooks.
-- Multi-agent collaboration for planning, execution, review, and escalation.
-- Long-task lifecycle: queued, running, waiting, resumed, completed, failed.
-- Human nodes for approvals, clarification, exception handling, and handoff.
+- Workflow orchestration with phases and steps. Baseline done through `adapter-agent-harness`.
+- Artifacts and checkpoints after each step. Baseline done through `AgentArtifact` and `AgentCheckpoint`.
+- Long-task lifecycle: created, running, waiting, completed, failed. Baseline done through `AgentRunStatus`.
+- Human nodes for approvals, clarification, exception handling, and handoff. Baseline done through `HumanAgentStepExecutor`.
+- Review and repair loop boundary. Baseline done through `ReviewGate` and `AgentRepairLoop`.
+- Future: YAML/JSON flow specs, JDBC run store, artifact persistence, external AgentWeaver CLI executor, and UI run visualization.
 
 ## v3.x - Enterprise AI Operating System
 
