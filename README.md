@@ -71,8 +71,9 @@ This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Co
 
 ## Documents
 
-- [中文使用手册](docs/zh/user-guide.md)
-- [中文功能说明](docs/zh/feature-reference.md)
+- [Chinese User Guide](docs/zh/user-guide.md)
+- [Chinese Java Usage](docs/zh/java-usage.md)
+- [Chinese Feature Reference](docs/zh/feature-reference.md)
 - [English User Guide](docs/en/user-guide.md)
 - [English Feature Reference](docs/en/feature-reference.md)
 - [Architecture](architecture.md)

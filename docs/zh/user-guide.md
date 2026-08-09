@@ -1,5 +1,7 @@
 # Spring AI Tool Adapter 中文使用手册
 
+> Java 开发者接入请优先阅读：[Java 使用说明](java-usage.md)
+
 ## 1. 项目定位
 
 Spring AI Tool Adapter 是面向企业 AI Tool Calling 的 Java / Spring Boot 框架。它不是简单把 Java 方法暴露给大模型，而是把业务意图、权限、风险、审计、脱敏、上下文和 MCP 扩展边界声明为可治理契约。
