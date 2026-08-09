@@ -59,6 +59,15 @@ Tool annotations describe what can be called. Governance annotations describe wh
 - Return-value masking through method-level `@AiToolSensitive`.
 - Maven publishing metadata for GitHub Packages.
 
+## Audit Query UI
+
+The demo Audit tab works like a small governance console:
+
+- Filter by `traceId`, `toolName`, `status`, `tenantId`, and `callerUser`.
+- Inspect audit rows in a table instead of raw JSON.
+- Select a row to compare context snapshots before and after tool execution.
+- Open `/chat?lang=zh&audit=demo-auto` to run a sample tool call and land on the audit view.
+
 ## Maven Publishing
 
 The root POM includes GitHub Packages distribution management. Configure a Maven server named `github` in `~/.m2/settings.xml`, then run:

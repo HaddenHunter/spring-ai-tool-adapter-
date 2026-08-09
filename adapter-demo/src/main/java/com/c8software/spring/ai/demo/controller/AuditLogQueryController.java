@@ -3,6 +3,7 @@ package com.c8software.spring.ai.demo.controller;
 import com.c8software.spring.ai.core.audit.AuditLogger;
 import com.c8software.spring.ai.core.audit.AuditQuery;
 import com.c8software.spring.ai.core.audit.AuditRecord;
+import com.c8software.spring.ai.core.context.ContextSnapshot;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,9 +63,33 @@ public class AuditLogQueryController {
             dto.put("eventType", record.getEventType());
             dto.put("contextBeforeHash", record.getContextBeforeHash());
             dto.put("contextAfterHash", record.getContextAfterHash());
+            dto.put("contextBefore", snapshotDto(record.getContextBefore()));
+            dto.put("contextAfter", snapshotDto(record.getContextAfter()));
             dto.put("timestamp", record.getTimestamp() == null ? null : String.valueOf(record.getTimestamp()));
             result.add(dto);
         }
         return result;
+    }
+
+    private Map<String, Object> snapshotDto(ContextSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("sessionId", snapshot.getSessionId());
+        dto.put("tenantId", snapshot.getTenantId());
+        dto.put("userId", snapshot.getUserId());
+        dto.put("role", snapshot.getRole());
+        dto.put("modelProvider", snapshot.getModelProvider());
+        dto.put("modelName", snapshot.getModelName());
+        dto.put("taskId", snapshot.getTaskId());
+        dto.put("taskType", snapshot.getTaskType());
+        dto.put("taskStatus", snapshot.getTaskStatus() == null ? null : snapshot.getTaskStatus().name());
+        dto.put("currentStep", snapshot.getCurrentStep());
+        dto.put("pendingApproval", snapshot.isPendingApproval());
+        dto.put("facts", snapshot.getFacts());
+        dto.put("userOverrides", snapshot.getUserOverrides());
+        dto.put("capturedAt", snapshot.getCapturedAt() == null ? null : String.valueOf(snapshot.getCapturedAt()));
+        return dto;
     }
 }

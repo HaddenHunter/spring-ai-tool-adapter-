@@ -10,6 +10,7 @@ import com.c8software.spring.ai.agent.AgentRunState;
 import com.c8software.spring.ai.agent.AgentRunStore;
 import com.c8software.spring.ai.agent.AgentStep;
 import com.c8software.spring.ai.agent.ArtifactStore;
+import com.c8software.spring.ai.core.context.ContextSnapshot;
 import com.c8software.spring.ai.core.definition.ToolDefinition;
 import com.c8software.spring.ai.core.definition.ToolParameter;
 import com.c8software.spring.ai.core.enterprise.EnterpriseAiOperatingSystem;
@@ -423,7 +424,7 @@ public class ChatController {
             result.put("sessionId", response.getSessionId());
             result.put("taskId", response.getTaskId());
             result.put("taskStatus", response.getTaskStatus());
-            result.put("contextSnapshot", response.getContextSnapshot());
+            result.put("contextSnapshot", snapshotDto(response.getContextSnapshot()));
             result.put("result", response.getToolResult());
             return result;
         } catch (RuntimeException ex) {
@@ -481,6 +482,28 @@ public class ChatController {
                 new LinkedHashSet<>(Arrays.asList("demo:tool:invoke", "finance:read")),
                 Instant.now()
         );
+    }
+
+    private Map<String, Object> snapshotDto(ContextSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("sessionId", snapshot.getSessionId());
+        dto.put("tenantId", snapshot.getTenantId());
+        dto.put("userId", snapshot.getUserId());
+        dto.put("role", snapshot.getRole());
+        dto.put("modelProvider", snapshot.getModelProvider());
+        dto.put("modelName", snapshot.getModelName());
+        dto.put("taskId", snapshot.getTaskId());
+        dto.put("taskType", snapshot.getTaskType());
+        dto.put("taskStatus", snapshot.getTaskStatus() == null ? null : snapshot.getTaskStatus().name());
+        dto.put("currentStep", snapshot.getCurrentStep());
+        dto.put("pendingApproval", snapshot.isPendingApproval());
+        dto.put("facts", snapshot.getFacts());
+        dto.put("userOverrides", snapshot.getUserOverrides());
+        dto.put("capturedAt", stringValue(snapshot.getCapturedAt()));
+        return dto;
     }
 
     private String sampleFlowSpec() {

@@ -170,7 +170,8 @@ public class DefaultToolExecutor implements ToolExecutor {
                 String.valueOf(input == null ? 0 : input.hashCode()),
                 String.valueOf(output == null ? 0 : output.hashCode()),
                 cost, status, errorMessage, "TOOL_CALL",
-                snapshotHash(beforeSnapshot), snapshotHash(afterSnapshot), Instant.now()));
+                snapshotHash(beforeSnapshot), snapshotHash(afterSnapshot),
+                beforeSnapshot, afterSnapshot, Instant.now()));
     }
 
     private String snapshotHash(ContextSnapshot snapshot) {

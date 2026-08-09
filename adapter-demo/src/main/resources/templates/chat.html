@@ -91,10 +91,22 @@
     .audit-banner{display:none;border:1px solid #fedf89;background:#fffaeb;color:#7a2e0e;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px}
     .audit-banner b{display:block;color:#7a2e0e;margin-bottom:3px}
     .promo-audit .audit-banner{display:block}
+    .audit-console{display:none}
+    .audit-filter{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:8px;margin-bottom:10px}
+    .audit-filter input,.audit-filter select{height:32px;font-size:12px}
+    .audit-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);font-size:12px}
+    .audit-table th,.audit-table td{border-bottom:1px solid #eef1f5;padding:7px 8px;text-align:left;vertical-align:top}
+    .audit-table th{background:#f8fafc;color:#475467;font-weight:700}
+    .audit-table tr{cursor:pointer}
+    .audit-table tr:hover{background:#f5f8ff}
+    .audit-table tr.selected{background:#e8f0ff}
+    .audit-detail{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .audit-detail h3{margin-bottom:6px}
+    .audit-detail pre{min-height:150px;max-height:260px;font-size:12px}
     .muted{color:var(--muted)}
     .token-bar{height:8px;border-radius:99px;background:#eaecf0;overflow:hidden}
     .token-fill{height:100%;width:0;background:var(--green)}
-    @media(max-width:1100px){.shell{grid-template-columns:1fr;grid-template-rows:auto}.conversation,.governance,.debug{grid-column:auto;grid-row:auto}.flow{grid-template-columns:1fr}.connector{height:16px;width:2px;margin:0 auto}.node-grid,.agent-flow-board,.agent-two-col,.agent-strip{grid-template-columns:1fr}.agent-hero{grid-template-columns:1fr}}
+    @media(max-width:1100px){.shell{grid-template-columns:1fr;grid-template-rows:auto}.conversation,.governance,.debug{grid-column:auto;grid-row:auto}.flow{grid-template-columns:1fr}.connector{height:16px;width:2px;margin:0 auto}.node-grid,.agent-flow-board,.agent-two-col,.agent-strip,.audit-filter,.audit-detail{grid-template-columns:1fr}.agent-hero{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -193,6 +205,32 @@
         <b id="auditBannerTitle">Audit Review Evidence</b>
         <span id="auditBannerText">Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.</span>
       </div>
+      <div id="auditConsole" class="audit-console">
+        <div class="audit-filter">
+          <input id="auditTraceId" placeholder="traceId">
+          <input id="auditToolName" placeholder="toolName">
+          <select id="auditStatus">
+            <option value="">status</option>
+            <option value="SUCCESS">SUCCESS</option>
+            <option value="ERROR">ERROR</option>
+            <option value="IDEMPOTENT_HIT">IDEMPOTENT_HIT</option>
+          </select>
+          <input id="auditTenantId" placeholder="tenantId">
+          <input id="auditCallerUser" placeholder="callerUser">
+          <button id="auditSearchButton" onclick="queryAudit()">Search</button>
+        </div>
+        <div id="auditTable"></div>
+        <div class="audit-detail">
+          <div>
+            <h3 id="auditBeforeTitle">Context Before</h3>
+            <pre id="auditBefore">{}</pre>
+          </div>
+          <div>
+            <h3 id="auditAfterTitle">Context After</h3>
+            <pre id="auditAfter">{}</pre>
+          </div>
+        </div>
+      </div>
       <div id="agentActions" class="agent-actions">
         <div class="agent-hero">
           <div>
@@ -259,6 +297,11 @@ const I18N = {
     tabFeedback: 'Feedback',
     auditBannerTitle: 'Audit Review Evidence',
     auditBannerText: 'Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.',
+    auditSearchButton: 'Search',
+    auditBeforeTitle: 'Context Before',
+    auditAfterTitle: 'Context After',
+    auditNoRows: 'No audit records match the current filters.',
+    auditSelectHint: 'Select an audit row to inspect context snapshots.',
     agentPromoTitle: 'AgentWeaver Flow, Spring Governance',
     agentPromoSubtitle: 'Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.',
     startAgentButton: 'Start Agent',
@@ -393,6 +436,7 @@ let currentAgentRunId = '';
 let currentAgentSpec = '';
 let agentWeaverInfo = {};
 let pendingApprovalId = '';
+let auditRows = [];
 let debugCache = {prompt:'', schema:'', audit:'', replay:'', agent:'', market:'', feedback:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
@@ -424,7 +468,8 @@ function applyLocale(){
     'sessionLabel','selectedToolLabel','lastCostLabel','lastStatusLabel','governanceTitle','currentUserLabel',
     'tenantLabel','v0StatusLabel','v1StatusLabel','v3StatusLabel','tokenUsageLabel','permissionScopesTitle',
     'availableToolsTitle','debugTitle','tabPrompt','tabSchema','tabAudit','tabReplay','tabAgent','tabMarket',
-    'tabFeedback','auditBannerTitle','auditBannerText','startAgentButton','resumeAgentButton'
+    'tabFeedback','auditBannerTitle','auditBannerText','auditSearchButton','auditBeforeTitle','auditAfterTitle',
+    'startAgentButton','resumeAgentButton'
   ].forEach(id => setText(id, id));
   const userInput = document.getElementById('userInput');
   if (userInput) userInput.value = t('userInput');
@@ -515,6 +560,8 @@ async function loadDebug(){
   debugCache.prompt = prompt.prompt;
   debugCache.schema = pretty(schema);
   debugCache.audit = pretty(audit);
+  auditRows = audit;
+  renderAuditConsole(auditRows);
   debugCache.replay = pretty(replay);
   currentAgentSpec = sampleFlow.spec;
   agentWeaverInfo = agentWeaver;
@@ -533,7 +580,70 @@ function showDebug(kind){
   document.getElementById('agentActions').style.display = kind === 'agent' ? 'block' : 'none';
   document.getElementById('agentVisual').style.display = kind === 'agent' ? 'block' : 'none';
   document.getElementById('auditBanner').style.display = kind === 'audit' || document.body.classList.contains('promo-audit') ? 'block' : 'none';
+  document.getElementById('auditConsole').style.display = kind === 'audit' ? 'block' : 'none';
+  document.getElementById('debugOutput').style.display = kind === 'audit' ? 'none' : 'block';
   document.getElementById('debugOutput').textContent = debugCache[kind] || '';
+}
+
+async function queryAudit(){
+  const params = new URLSearchParams();
+  [['traceId','auditTraceId'],['toolName','auditToolName'],['status','auditStatus'],['tenantId','auditTenantId'],['callerUser','auditCallerUser']].forEach(([key,id]) => {
+    const value = document.getElementById(id).value.trim();
+    if (value) params.set(key, value);
+  });
+  params.set('limit','100');
+  auditRows = await fetch(`/api/audit/logs?${params.toString()}`).then(r=>r.json());
+  debugCache.audit = pretty(auditRows);
+  renderAuditConsole(auditRows);
+}
+
+function renderAuditConsole(rows){
+  const table = document.getElementById('auditTable');
+  if (!table) return;
+  if (!rows || rows.length === 0) {
+    table.innerHTML = `<div class="agent-list-item">${t('auditNoRows')}</div>`;
+    document.getElementById('auditBefore').textContent = t('auditSelectHint');
+    document.getElementById('auditAfter').textContent = t('auditSelectHint');
+    return;
+  }
+  table.innerHTML = `
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>time</th><th>traceId</th><th>toolName</th><th>tenantId</th><th>user</th><th>status</th><th>cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((row,index) => `
+          <tr onclick="selectAuditRow(${index})">
+            <td>${row.timestamp || '-'}</td>
+            <td>${shortText(row.traceId)}</td>
+            <td>${row.toolName || '-'}</td>
+            <td>${row.tenantId || '-'}</td>
+            <td>${row.callerUser || '-'}</td>
+            <td><span class="status ${row.status === 'SUCCESS' || row.status === 'IDEMPOTENT_HIT' ? 'done' : 'running'}">${row.status || '-'}</span></td>
+            <td>${row.costMs || 0} ms</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+  selectAuditRow(0);
+}
+
+function selectAuditRow(index){
+  const row = auditRows[index];
+  if (!row) return;
+  Array.from(document.querySelectorAll('.audit-table tr')).forEach((tr,i) => tr.classList.toggle('selected', i === index + 1));
+  const before = row.contextBefore || {contextBeforeHash: row.contextBeforeHash || null, snapshot: 'not available from persistent audit storage'};
+  const after = row.contextAfter || {contextAfterHash: row.contextAfterHash || null, snapshot: 'not available from persistent audit storage'};
+  document.getElementById('auditBefore').textContent = pretty(before);
+  document.getElementById('auditAfter').textContent = pretty(after);
+}
+
+function shortText(value){
+  if (!value) return '-';
+  const text = String(value);
+  return text.length > 18 ? `${text.slice(0,8)}...${text.slice(-6)}` : text;
 }
 
 function renderAgentVisual(data){
@@ -807,6 +917,10 @@ async function send(){
 async function init(){
   applyLocale();
   await refreshAll();
+  if (pageParams.get('audit') === 'demo-auto') {
+    await send();
+    return;
+  }
   if (pageParams.get('springai') === 'approval-auto') {
     document.getElementById('userInput').value = locale === 'zh'
       ? '给客户1001创建订单，金额199.9'
