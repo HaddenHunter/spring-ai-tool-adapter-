@@ -1,12 +1,15 @@
 package com.c8software.spring.ai.agent;
 
 import com.c8software.spring.ai.core.execution.ToolExecutor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,8 +17,38 @@ import java.util.List;
 public class AgentHarnessAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
+    public ObjectMapper agentHarnessObjectMapper() {
+        return new ObjectMapper();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DataSource.class)
+    public AgentRunStore jdbcAgentRunStore(DataSource dataSource, ObjectMapper objectMapper) {
+        JdbcAgentRunStore store = new JdbcAgentRunStore(new JdbcTemplate(dataSource), objectMapper);
+        store.initializeSchema();
+        return store;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public AgentRunStore agentRunStore() {
         return new InMemoryAgentRunStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DataSource.class)
+    public ArtifactStore jdbcArtifactStore(DataSource dataSource, ObjectMapper objectMapper) {
+        JdbcArtifactStore store = new JdbcArtifactStore(new JdbcTemplate(dataSource), objectMapper);
+        store.initializeSchema();
+        return store;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ArtifactStore artifactStore() {
+        return new InMemoryArtifactStore();
     }
 
     @Bean
@@ -65,7 +98,8 @@ public class AgentHarnessAutoConfiguration {
     @ConditionalOnMissingBean
     public AgentHarness agentHarness(List<AgentStepExecutor> stepExecutors,
                                      AgentRunStore runStore,
+                                     ArtifactStore artifactStore,
                                      AgentRepairLoop repairLoop) {
-        return new DefaultAgentHarness(new ArrayList<AgentStepExecutor>(stepExecutors), runStore, repairLoop);
+        return new DefaultAgentHarness(new ArrayList<AgentStepExecutor>(stepExecutors), runStore, artifactStore, repairLoop);
     }
 }

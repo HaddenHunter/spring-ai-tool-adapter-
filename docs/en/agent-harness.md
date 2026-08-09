@@ -16,6 +16,9 @@
 - `AgentRepairLoop`: repair extension point.
 - `HumanAgentStepExecutor`: human node that enters `WAITING`.
 - `AgentFlowSpecParser`: parses JSON / YAML declarative Flow Specs into `AgentFlowDefinition`.
+- `ArtifactStore`: persists step artifacts.
+- `JdbcAgentRunStore`: persists run state and checkpoints through JDBC.
+- `JdbcArtifactStore`: persists artifacts through JDBC.
 
 ## Minimal Usage
 
@@ -84,9 +87,38 @@ phases:
 - Spring AI owns model calls, Advisors, RAG, and Memory.
 - AgentWeaver can become an external executor later, not a hard core dependency.
 
+## Persistence
+
+By default, the harness uses in-memory implementations:
+
+- `InMemoryAgentRunStore`
+- `InMemoryArtifactStore`
+
+When a `DataSource` exists in the Spring context, auto-configuration prefers:
+
+- `JdbcAgentRunStore`
+- `JdbcArtifactStore`
+
+JDBC RunStore persists:
+
+- run id
+- flow id
+- status
+- current phase / step
+- completed step ids
+- attributes
+- checkpoints
+
+ArtifactStore persists:
+
+- artifact id
+- run id
+- step id
+- artifact type
+- artifact content JSON
+- created time
+
 ## Next Steps
 
-- ArtifactStore persistence SPI.
-- JDBC RunStore.
 - Demo UI for Phase, Step, Artifact, and Checkpoint.
 - External AgentWeaver CLI executor.

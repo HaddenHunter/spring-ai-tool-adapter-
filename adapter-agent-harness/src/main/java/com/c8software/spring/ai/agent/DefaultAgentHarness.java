@@ -11,11 +11,18 @@ import java.util.UUID;
 public class DefaultAgentHarness implements AgentHarness {
     private final List<AgentStepExecutor> executors;
     private final AgentRunStore runStore;
+    private final ArtifactStore artifactStore;
     private final AgentRepairLoop repairLoop;
 
     public DefaultAgentHarness(List<AgentStepExecutor> executors, AgentRunStore runStore, AgentRepairLoop repairLoop) {
+        this(executors, runStore, new InMemoryArtifactStore(), repairLoop);
+    }
+
+    public DefaultAgentHarness(List<AgentStepExecutor> executors, AgentRunStore runStore,
+                               ArtifactStore artifactStore, AgentRepairLoop repairLoop) {
         this.executors = new ArrayList<AgentStepExecutor>(executors);
         this.runStore = runStore;
+        this.artifactStore = artifactStore == null ? new InMemoryArtifactStore() : artifactStore;
         this.repairLoop = repairLoop == null ? new NoopAgentRepairLoop() : repairLoop;
     }
 
@@ -95,8 +102,10 @@ public class DefaultAgentHarness implements AgentHarness {
     }
 
     private void recordArtifact(AgentRunState state, AgentStep step, AgentStepResult result) {
-        state.addArtifact(new AgentArtifact(UUID.randomUUID().toString(), state.getRunId(), step.getId(),
-                step.getType().name(), result.getOutput(), Instant.now()));
+        AgentArtifact artifact = new AgentArtifact(UUID.randomUUID().toString(), state.getRunId(), step.getId(),
+                step.getType().name(), result.getOutput(), Instant.now());
+        state.addArtifact(artifact);
+        artifactStore.save(artifact);
     }
 
     private void checkpoint(AgentRunState state, AgentPhase phase, AgentStep step) {

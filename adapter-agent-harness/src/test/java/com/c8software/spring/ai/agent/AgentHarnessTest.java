@@ -22,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentHarnessTest {
     @Test
     void runsToolFlowWithCheckpointsAndArtifacts() {
-        AgentHarness harness = harness(new PassReviewGate(), new NoopAgentRepairLoop());
+        InMemoryArtifactStore artifactStore = new InMemoryArtifactStore();
+        AgentHarness harness = harness(new PassReviewGate(), new NoopAgentRepairLoop(), artifactStore);
         AgentFlowDefinition flow = new JacksonAgentFlowSpecParser().parseJson("{"
                 + "\"id\":\"flow-1\","
                 + "\"name\":\"Tool flow\","
@@ -38,6 +39,7 @@ class AgentHarnessTest {
         assertThat(state.getCheckpoints()).hasSize(1);
         assertThat(state.getArtifacts()).hasSize(1);
         assertThat(state.getArtifacts().get(0).getContent()).isEqualTo("Hello Ada");
+        assertThat(artifactStore.listByRunId(state.getRunId())).hasSize(1);
     }
 
     @Test
@@ -83,6 +85,10 @@ class AgentHarnessTest {
     }
 
     private AgentHarness harness(ReviewGate reviewGate, AgentRepairLoop repairLoop) {
+        return harness(reviewGate, repairLoop, new InMemoryArtifactStore());
+    }
+
+    private AgentHarness harness(ReviewGate reviewGate, AgentRepairLoop repairLoop, ArtifactStore artifactStore) {
         ToolRegistry registry = new ToolRegistry();
         new AiToolRegistrar(registry, new AiToolProperties())
                 .postProcessAfterInitialization(new DemoTools(), "demoTools");
@@ -99,7 +105,7 @@ class AgentHarnessTest {
                 new HumanAgentStepExecutor(),
                 new NoopAgentStepExecutor()
         );
-        return new DefaultAgentHarness(executors, new InMemoryAgentRunStore(), repairLoop);
+        return new DefaultAgentHarness(executors, new InMemoryAgentRunStore(), artifactStore, repairLoop);
     }
 
     private ExecutionContext context() {

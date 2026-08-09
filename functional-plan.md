@@ -19,7 +19,7 @@ The project exposes Spring business capabilities to LLMs through a governed adap
 - `adapter-core`: tool annotation, registry, schema, execution, governance, audit, context, MCP planning, hub, and enterprise baseline.
 - `spring-ai-tool-adapter-starter`: Spring Boot starter for adapter core.
 - `spring-ai-tool-adapter-spring-ai`: Spring AI ToolCallback, ToolContext, and Memory bridge.
-- `adapter-agent-harness`: Java-native Agent flow, YAML/JSON spec parsing, checkpoint, artifact, review, repair, and human-node harness.
+- `adapter-agent-harness`: Java-native Agent flow, YAML/JSON spec parsing, checkpoint, artifact persistence, JDBC run store, review, repair, and human-node harness.
 
 ## 1. Annotation And Governance Metadata
 

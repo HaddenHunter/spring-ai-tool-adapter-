@@ -33,7 +33,8 @@ Status: Java-native Agent Harness baseline implemented. The goal is to coordinat
 - Human nodes for approvals, clarification, exception handling, and handoff. Baseline done through `HumanAgentStepExecutor`.
 - Review and repair loop boundary. Baseline done through `ReviewGate` and `AgentRepairLoop`.
 - Declarative YAML/JSON Flow Spec parsing. Baseline done through `AgentFlowSpecParser`.
-- Future: JDBC run store, artifact persistence, external AgentWeaver CLI executor, and UI run visualization.
+- Artifact persistence and JDBC run store. Baseline done through `ArtifactStore`, `JdbcArtifactStore`, and `JdbcAgentRunStore`.
+- Future: external AgentWeaver CLI executor and UI run visualization.
 
 ## v3.x - Enterprise AI Operating System
 

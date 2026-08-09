@@ -16,6 +16,9 @@
 - `AgentRepairLoop`：修复循环扩展点。
 - `HumanAgentStepExecutor`：人工节点，进入 `WAITING`。
 - `AgentFlowSpecParser`：把 JSON / YAML 声明式 Flow Spec 解析成 `AgentFlowDefinition`。
+- `ArtifactStore`：持久化步骤产物。
+- `JdbcAgentRunStore`：用 JDBC 保存 run state 和 checkpoint。
+- `JdbcArtifactStore`：用 JDBC 保存 artifact。
 
 ## 最小使用方式
 
@@ -84,9 +87,38 @@ phases:
 - Spring AI 负责模型、Advisor、RAG、Memory。
 - AgentWeaver 可作为未来的外部 executor，不进入 core 强依赖。
 
+## 持久化
+
+默认情况下使用内存实现：
+
+- `InMemoryAgentRunStore`
+- `InMemoryArtifactStore`
+
+当 Spring 容器中存在 `DataSource` 时，自动配置会优先注册：
+
+- `JdbcAgentRunStore`
+- `JdbcArtifactStore`
+
+JDBC RunStore 保存：
+
+- run id
+- flow id
+- status
+- current phase / step
+- completed step ids
+- attributes
+- checkpoints
+
+ArtifactStore 保存：
+
+- artifact id
+- run id
+- step id
+- artifact type
+- artifact content JSON
+- created time
+
 ## 下一步
 
-- ArtifactStore 持久化 SPI。
-- RunStore JDBC 实现。
 - Demo UI 展示 Phase、Step、Artifact、Checkpoint。
 - 外部 AgentWeaver CLI executor。
