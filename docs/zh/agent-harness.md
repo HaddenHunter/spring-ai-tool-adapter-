@@ -139,6 +139,23 @@ UI 会展示：
 
 ![AgentWeaver compatible demo](../agentweaver-demo-promo.png)
 
+状态截图：
+
+| 执行中 | 等待人工 / 可恢复 |
+| --- | --- |
+| ![Agent running](../agentweaver-demo-running.png) | ![Agent waiting](../agentweaver-demo-waiting.png) |
+
+| 已完成 | 审计审核 |
+| --- | --- |
+| ![Agent completed](../agentweaver-demo-completed.png) | ![Agent audit review](../agentweaver-demo-audit.png) |
+
+截图入口：
+
+- `/chat?promo=agentweaver&state=running`
+- `/chat?promo=agentweaver&state=waiting`
+- `/chat?promo=agentweaver&state=completed`
+- `/chat?promo=agentweaver&state=audit`
+
 ## 下一步
 
 - 外部 AgentWeaver CLI executor。

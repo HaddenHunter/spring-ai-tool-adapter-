@@ -68,6 +68,16 @@ Use `adapter-agent-harness` for Java-native v2 workflows with phases, steps, che
 
 ![AgentWeaver-compatible demo UI](docs/agentweaver-demo-promo.png)
 
+### Demo State Gallery
+
+| Running | Waiting / Resume |
+| --- | --- |
+| ![Agent running](docs/agentweaver-demo-running.png) | ![Agent waiting](docs/agentweaver-demo-waiting.png) |
+
+| Completed | Audit Review |
+| --- | --- |
+| ![Agent completed](docs/agentweaver-demo-completed.png) | ![Agent audit review](docs/agentweaver-demo-audit.png) |
+
 ## Codex Skill for Existing Systems
 
 This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Codex skill for teams adopting the framework in an existing Spring application. It guides Codex to scan current services, generate governed `@AiTool` facades, bind session context, add semantic MCP provisioning plans, and create tests.

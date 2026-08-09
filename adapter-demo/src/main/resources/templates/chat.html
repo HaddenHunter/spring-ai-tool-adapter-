@@ -86,6 +86,9 @@
     .agent-list-item b{display:block;color:#101828;font-size:13px;margin-bottom:3px}
     .promo-agent .shell{grid-template-columns:minmax(360px,.9fr) minmax(560px,1.25fr) 320px;grid-template-rows:auto minmax(560px,auto)}
     .promo-agent .debug{grid-column:2 / span 2;grid-row:2}
+    .audit-banner{display:none;border:1px solid #fedf89;background:#fffaeb;color:#7a2e0e;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+    .audit-banner b{display:block;color:#7a2e0e;margin-bottom:3px}
+    .promo-audit .audit-banner{display:block}
     .muted{color:var(--muted)}
     .token-bar{height:8px;border-radius:99px;background:#eaecf0;overflow:hidden}
     .token-fill{height:100%;width:0;background:var(--green)}
@@ -175,6 +178,10 @@
       </div>
     </div>
     <div class="debug-body">
+      <div id="auditBanner" class="audit-banner">
+        <b>Audit Review Evidence</b>
+        Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.
+      </div>
       <div id="agentActions" class="agent-actions">
         <div class="agent-hero">
           <div>
@@ -289,6 +296,7 @@ function showDebug(kind){
   document.getElementById(`tab${tabName}`).classList.add('active');
   document.getElementById('agentActions').style.display = kind === 'agent' ? 'block' : 'none';
   document.getElementById('agentVisual').style.display = kind === 'agent' ? 'block' : 'none';
+  document.getElementById('auditBanner').style.display = kind === 'audit' || document.body.classList.contains('promo-audit') ? 'block' : 'none';
   document.getElementById('debugOutput').textContent = debugCache[kind] || '';
 }
 
@@ -340,7 +348,7 @@ function renderAgentVisual(data){
       </div>
       <div class="agent-list">
         <h3>Checkpoints</h3>
-        ${checkpoints.length ? checkpoints.map(c => `<div class="agent-list-item"><b>${c.phaseId} / ${c.stepId}</b>${c.status} · ${c.createdAt}</div>`).join('') : '<div class="agent-list-item">No checkpoint yet. Human and tool steps will appear here.</div>'}
+        ${checkpoints.length ? checkpoints.map(c => `<div class="agent-list-item"><b>${c.phaseId} / ${c.stepId}</b>${c.status} - ${c.createdAt}</div>`).join('') : '<div class="agent-list-item">No checkpoint yet. Human and tool steps will appear here.</div>'}
       </div>
     </div>`;
 }
@@ -371,6 +379,39 @@ function renderAgentRun(data){
   document.getElementById('lastStatus').textContent = data.status || 'idle';
   renderAgentVisual(data);
   showDebug('agent');
+}
+
+function promoRunningRun(){
+  return {
+    runId:'promo-running-run',
+    flowId:'agentweaver-governed-refund',
+    status:'RUNNING',
+    currentPhaseId:'execute',
+    currentStepId:'query-weather',
+    completedStepIds:['query-balance','human-confirm'],
+    checkpoints:[
+      {phaseId:'collect', stepId:'query-balance', status:'RUNNING', createdAt:'2026-08-09T10:40:00Z'},
+      {phaseId:'collect', stepId:'human-confirm', status:'WAITING', createdAt:'2026-08-09T10:40:01Z'}
+    ],
+    artifacts:[
+      {stepId:'query-balance', type:'TOOL', content:{userId:'1001', balance:1024.5}},
+      {stepId:'human-confirm', type:'HUMAN', content:'Waiting for human approval'}
+    ],
+    flow:{
+      id:'agentweaver-governed-refund',
+      name:'AgentWeaver Governed Refund Flow',
+      phases:[
+        {id:'collect', name:'Collect Customer Context', steps:[
+          {id:'query-balance', name:'Query Balance', type:'TOOL', toolName:'mock_query_user_balance'},
+          {id:'human-confirm', name:'Human Approval', type:'HUMAN', toolName:'human-confirm'}
+        ]},
+        {id:'execute', name:'Execute Governed Action', steps:[
+          {id:'query-weather', name:'Query External Signal', type:'TOOL', toolName:'mock_query_weather'},
+          {id:'review', name:'Review Artifacts', type:'REVIEW', toolName:'review'}
+        ]}
+      ]
+    }
+  };
 }
 
 async function startAgent(){
@@ -477,9 +518,21 @@ async function init(){
   const params = new URLSearchParams(window.location.search);
   if (params.get('promo') === 'agentweaver') {
     document.body.classList.add('promo-agent');
-    showDebug('agent');
-    await startAgent();
-    await resumeAgent();
+    const state = params.get('state') || 'completed';
+    if (state === 'running') {
+      renderAgentRun(promoRunningRun());
+    } else if (state === 'waiting') {
+      await startAgent();
+    } else if (state === 'audit') {
+      document.body.classList.add('promo-audit');
+      await startAgent();
+      await resumeAgent();
+      await loadDebug();
+      showDebug('audit');
+    } else {
+      await startAgent();
+      await resumeAgent();
+    }
   }
 }
 

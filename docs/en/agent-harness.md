@@ -139,6 +139,23 @@ Promotion screenshot:
 
 ![AgentWeaver compatible demo](../agentweaver-demo-promo.png)
 
+State screenshots:
+
+| Running | Waiting / Resume |
+| --- | --- |
+| ![Agent running](../agentweaver-demo-running.png) | ![Agent waiting](../agentweaver-demo-waiting.png) |
+
+| Completed | Audit Review |
+| --- | --- |
+| ![Agent completed](../agentweaver-demo-completed.png) | ![Agent audit review](../agentweaver-demo-audit.png) |
+
+Screenshot routes:
+
+- `/chat?promo=agentweaver&state=running`
+- `/chat?promo=agentweaver&state=waiting`
+- `/chat?promo=agentweaver&state=completed`
+- `/chat?promo=agentweaver&state=audit`
+
 ## Next Steps
 
 - External AgentWeaver CLI executor.
