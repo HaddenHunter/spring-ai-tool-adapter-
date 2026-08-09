@@ -60,7 +60,7 @@ The adapter can turn natural-language integration needs into an MCP provisioning
 
 ## Spring AI Integration
 
-Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring AI `ChatClient` or Spring AI Tool Calling. It exposes governed adapter tools as Spring AI `ToolCallbackProvider` callbacks while keeping permission checks, audit, timeout isolation, masking, Session + Context, and tool metadata inside this adapter.
+Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring AI `ChatClient` or Spring AI Tool Calling. It exposes governed adapter tools as Spring AI `ToolCallbackProvider` callbacks while keeping permission checks, audit, timeout isolation, masking, Session + Context, and tool metadata inside this adapter. The bridge also provides ToolContext mapping and a ChatMemoryRepository aligned with adapter session ids.
 
 ## Codex Skill for Existing Systems
 

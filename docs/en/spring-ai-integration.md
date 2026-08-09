@@ -21,7 +21,14 @@ Spring AI exposes tools through `ToolCallback` and `ToolCallbackProvider`. This 
 
 ## Bean Setup
 
-The module auto-registers a `ToolCallbackProvider`. Override `SpringAiExecutionContextFactory` when the application needs custom user, tenant, trace, or permission mapping:
+The module auto-registers:
+
+- `ToolCallbackProvider`
+- `SpringAiExecutionContextFactory`
+- `SpringAiToolContextAdapter`
+- `ChatMemoryRepository`
+
+Override `SpringAiExecutionContextFactory` when the application needs custom user, tenant, trace, or permission mapping:
 
 ```java
 @Bean
@@ -39,6 +46,34 @@ Then pass the callbacks to Spring AI:
 ```java
 ToolCallback[] callbacks = governedToolCallbackProvider.getToolCallbacks();
 ```
+
+## ChatClient Usage
+
+Use the bridge from an application running Spring Boot 3 and Spring AI:
+
+```java
+@Service
+public class AiAssistant {
+    private final ChatClient chatClient;
+    private final ToolCallbackProvider governedTools;
+
+    public AiAssistant(ChatClient.Builder builder, ToolCallbackProvider governedTools) {
+        this.chatClient = builder
+                .defaultToolCallbacks(governedTools)
+                .build();
+        this.governedTools = governedTools;
+    }
+
+    public String chat(String input) {
+        return chatClient.prompt()
+                .user(input)
+                .call()
+                .content();
+    }
+}
+```
+
+Spring AI owns model calls and the tool-calling lifecycle. This project keeps authorization, audit, masking, timeout isolation, idempotency, and approval inside `ToolExecutor`.
 
 Business tools remain declared with the adapter annotations:
 
@@ -65,16 +100,33 @@ When Spring AI passes a `ToolContext`, the bridge maps these keys into the adapt
 
 Implement `SpringAiExecutionContextFactory` to plug in an enterprise user, tenant, or permission model.
 
+## Memory And Context
+
+The bridge provides a default `ChatMemoryRepository`. Use the adapter `sessionId` as the Spring AI conversationId so Spring AI message memory and adapter Session + Context share the same boundary.
+
+`SpringAiToolContextAdapter` maps the current thread-bound `ContextSnapshot` into Spring AI `ToolContext`. Recommended rules:
+
+- Spring AI Memory stores dialogue messages only.
+- Adapter Context stores structured business facts.
+- Confirmed user choices must be written into Context facts.
+- ToolContext is a runtime carrier, not the source of truth.
+
+## Advisor Placement
+
+Advisors belong in the Spring AI application layer for prompt enrichment, RAG injection, memory assembly, and observation. Enterprise governance should stay in adapter `ToolExecutor` and SPI implementations.
+
 ## Recommended Architecture
 
 ```mermaid
 flowchart LR
     A["Spring AI ChatClient"] --> B["ToolCallbackProvider"]
+    A --> H["Advisor / Memory / RAG"]
     B --> C["Spring AI bridge"]
     C --> D["ToolRegistry"]
     C --> E["ToolExecutor"]
     E --> F["Permission / Audit / Masking / Timeout"]
     F --> G["Spring Bean business tools"]
+    C --> I["Session + Context Snapshot"]
 ```
 
 Spring AI should continue to handle model calls, Advisors, RAG, and ChatClient orchestration. This project owns enterprise-grade Tool Adapter governance.

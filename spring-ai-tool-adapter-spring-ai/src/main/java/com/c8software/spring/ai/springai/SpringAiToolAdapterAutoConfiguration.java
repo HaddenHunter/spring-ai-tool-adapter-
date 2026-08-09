@@ -4,6 +4,7 @@ import com.c8software.spring.ai.core.execution.ToolExecutor;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -19,6 +20,18 @@ public class SpringAiToolAdapterAutoConfiguration {
     @ConditionalOnMissingBean
     public SpringAiExecutionContextFactory springAiExecutionContextFactory() {
         return new DefaultSpringAiExecutionContextFactory();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SpringAiToolContextAdapter springAiToolContextAdapter() {
+        return new SpringAiToolContextAdapter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChatMemoryRepository adapterChatMemoryRepository() {
+        return new AdapterChatMemoryRepository();
     }
 
     @Bean
