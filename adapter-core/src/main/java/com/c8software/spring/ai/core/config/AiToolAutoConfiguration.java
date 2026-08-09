@@ -16,6 +16,16 @@ import com.c8software.spring.ai.core.execution.DefaultToolExecutor;
 import com.c8software.spring.ai.core.execution.TimeoutToolInvocationExecutor;
 import com.c8software.spring.ai.core.execution.ToolExecutor;
 import com.c8software.spring.ai.core.execution.ToolInvocationExecutor;
+import com.c8software.spring.ai.core.enterprise.DefaultEnterpriseAiOperatingSystem;
+import com.c8software.spring.ai.core.enterprise.EnterpriseAiOperatingSystem;
+import com.c8software.spring.ai.core.enterprise.InMemoryLearningFeedbackStore;
+import com.c8software.spring.ai.core.enterprise.InMemoryPromptMarketplace;
+import com.c8software.spring.ai.core.enterprise.InMemoryTenantRegistry;
+import com.c8software.spring.ai.core.enterprise.LearningFeedbackStore;
+import com.c8software.spring.ai.core.enterprise.PromptMarketplace;
+import com.c8software.spring.ai.core.enterprise.RegistryToolMarketplace;
+import com.c8software.spring.ai.core.enterprise.TenantRegistry;
+import com.c8software.spring.ai.core.enterprise.ToolMarketplace;
 import com.c8software.spring.ai.core.hub.BusinessAiHub;
 import com.c8software.spring.ai.core.hub.ConversationReplayStore;
 import com.c8software.spring.ai.core.hub.DefaultBusinessAiHub;
@@ -167,6 +177,39 @@ public class AiToolAutoConfiguration {
     @ConditionalOnMissingBean
     public ToolVisibilityFilter toolVisibilityFilter() {
         return new DefaultToolVisibilityFilter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantRegistry tenantRegistry() {
+        return new InMemoryTenantRegistry();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PromptMarketplace promptMarketplace() {
+        return new InMemoryPromptMarketplace();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LearningFeedbackStore learningFeedbackStore() {
+        return new InMemoryLearningFeedbackStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ToolMarketplace toolMarketplace(ToolRegistry registry) {
+        return new RegistryToolMarketplace(registry);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EnterpriseAiOperatingSystem enterpriseAiOperatingSystem(TenantRegistry tenantRegistry,
+                                                                   PromptMarketplace promptMarketplace,
+                                                                   ToolMarketplace toolMarketplace,
+                                                                   LearningFeedbackStore feedbackStore) {
+        return new DefaultEnterpriseAiOperatingSystem(tenantRegistry, promptMarketplace, toolMarketplace, feedbackStore);
     }
 
     @Bean

@@ -81,6 +81,7 @@ This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Co
 - [Roadmap](roadmap.md)
 - [v0 Completion](v0-completion.md)
 - [v1 Baseline](v1-completion.md)
+- [v3 Baseline](v3-completion.md)
 - [World Model](world-model.yaml)
 - [Capability Boundaries](capability-boundaries.yaml)
 - [Phase Prompts](phase-prompts.yaml)

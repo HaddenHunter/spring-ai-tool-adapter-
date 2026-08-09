@@ -34,9 +34,9 @@ Goal: coordinate longer-running work beyond one chat turn.
 
 ## v3.x - Enterprise AI Operating System
 
-Goal: make AI capability reusable, governable, and deployable across the organization.
+Status: baseline implemented. The goal is to make AI capability reusable, governable, and deployable across the organization.
 
-- Self-learning feedback loops for prompts, tool quality, and task outcomes.
-- Prompt marketplace with versioning, ownership, approval, and rollback.
-- Tool marketplace with schema validation, permissions, examples, and usage analytics.
-- Private deployment and multi-tenant isolation for enterprise environments.
+- Self-learning feedback loops for prompts, tool quality, and task outcomes. Baseline done through `LearningFeedbackStore`.
+- Prompt marketplace with versioning, ownership, approval, and rollback. Baseline done through `PromptMarketplace`.
+- Tool marketplace with schema validation, permissions, examples, and usage analytics. Baseline done through `ToolMarketplace`.
+- Private deployment and multi-tenant isolation for enterprise environments. Baseline done through `TenantRegistry`.

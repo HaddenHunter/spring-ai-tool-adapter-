@@ -2,6 +2,14 @@ package com.c8software.spring.ai.demo.controller;
 
 import com.c8software.spring.ai.core.definition.ToolDefinition;
 import com.c8software.spring.ai.core.definition.ToolParameter;
+import com.c8software.spring.ai.core.enterprise.EnterpriseAiOperatingSystem;
+import com.c8software.spring.ai.core.enterprise.FeedbackSignal;
+import com.c8software.spring.ai.core.enterprise.LearningFeedbackStore;
+import com.c8software.spring.ai.core.enterprise.PromptAsset;
+import com.c8software.spring.ai.core.enterprise.PromptMarketplace;
+import com.c8software.spring.ai.core.enterprise.TenantProfile;
+import com.c8software.spring.ai.core.enterprise.TenantRegistry;
+import com.c8software.spring.ai.core.enterprise.ToolMarketplace;
 import com.c8software.spring.ai.core.execution.ExecutionContext;
 import com.c8software.spring.ai.core.hub.BusinessAiHub;
 import com.c8software.spring.ai.core.hub.BusinessAiHubRequest;
@@ -46,17 +54,38 @@ public class ChatController {
 
     private final ConversationReplayStore replayStore;
 
+    private final EnterpriseAiOperatingSystem enterpriseAiOperatingSystem;
+
+    private final PromptMarketplace promptMarketplace;
+
+    private final ToolMarketplace toolMarketplace;
+
+    private final LearningFeedbackStore feedbackStore;
+
+    private final TenantRegistry tenantRegistry;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
     public ChatController(ToolRegistry registry, BusinessAiHub businessAiHub, McpProvisioningPlanner mcpProvisioningPlanner,
                           ToolVisibilityFilter visibilityFilter, MetricsCollector metricsCollector,
-                          ConversationReplayStore replayStore) {
+                          ConversationReplayStore replayStore,
+                          EnterpriseAiOperatingSystem enterpriseAiOperatingSystem,
+                          PromptMarketplace promptMarketplace,
+                          ToolMarketplace toolMarketplace,
+                          LearningFeedbackStore feedbackStore,
+                          TenantRegistry tenantRegistry) {
         this.registry = registry;
         this.businessAiHub = businessAiHub;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
         this.visibilityFilter = visibilityFilter;
         this.metricsCollector = metricsCollector;
         this.replayStore = replayStore;
+        this.enterpriseAiOperatingSystem = enterpriseAiOperatingSystem;
+        this.promptMarketplace = promptMarketplace;
+        this.toolMarketplace = toolMarketplace;
+        this.feedbackStore = feedbackStore;
+        this.tenantRegistry = tenantRegistry;
+        seedEnterpriseDemoData();
     }
 
     @GetMapping({"/", "/chat"})
@@ -162,6 +191,60 @@ public class ChatController {
                 "context snapshots for replay"
         ));
         result.put("replayEndpoint", "/api/replay/{sessionId}");
+        return result;
+    }
+
+    @GetMapping("/api/v3/status")
+    @ResponseBody
+    public Map<String, Object> v3Status() {
+        Map<String, Object> result = new LinkedHashMap<>(enterpriseAiOperatingSystem.status());
+        result.put("capabilities", Arrays.asList(
+                "self-learning feedback signals",
+                "prompt marketplace baseline",
+                "tool marketplace baseline",
+                "private deployment profile",
+                "multi-tenant isolation registry"
+        ));
+        result.put("promptMarketplaceEndpoint", "/api/marketplace/prompts");
+        result.put("toolMarketplaceEndpoint", "/api/marketplace/tools");
+        result.put("feedbackEndpoint", "/api/learning/feedback");
+        return result;
+    }
+
+    @GetMapping("/api/marketplace/prompts")
+    @ResponseBody
+    public List<?> prompts() {
+        return promptMarketplace.list();
+    }
+
+    @GetMapping("/api/marketplace/tools")
+    @ResponseBody
+    public List<?> marketplaceTools() {
+        return toolMarketplace.list();
+    }
+
+    @GetMapping("/api/learning/feedback")
+    @ResponseBody
+    public List<?> feedback() {
+        return feedbackStore.list("demo-tenant", 100);
+    }
+
+    @PostMapping("/api/learning/feedback")
+    @ResponseBody
+    public Map<String, Object> recordFeedback(@RequestBody Map<String, String> body) {
+        FeedbackSignal signal = new FeedbackSignal(
+                UUID.randomUUID().toString(),
+                body.getOrDefault("tenantId", "demo-tenant"),
+                body.getOrDefault("targetType", "tool"),
+                body.getOrDefault("targetId", "unknown"),
+                Integer.parseInt(body.getOrDefault("score", "5")),
+                body.getOrDefault("comment", ""),
+                Instant.now()
+        );
+        feedbackStore.record(signal);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("recorded", true);
+        result.put("signal", signal);
         return result;
     }
 
@@ -292,5 +375,19 @@ public class ChatController {
             result.add(dto);
         }
         return result;
+    }
+
+    private void seedEnterpriseDemoData() {
+        if (tenantRegistry.get("demo-tenant") == null) {
+            tenantRegistry.save(new TenantProfile("demo-tenant", "Demo Tenant", "private",
+                    new LinkedHashSet<>(Arrays.asList("finance", "customer", "messaging", "weather")),
+                    Instant.now()));
+        }
+        if (promptMarketplace.get("demo-support-prompt") == null) {
+            promptMarketplace.publish(new PromptAsset("demo-support-prompt", "Customer Support Assistant",
+                    "1.0.0", "demo-admin", "APPROVED",
+                    "Use governed tools, preserve context, and ask for approval on high-risk actions.",
+                    Instant.now()));
+        }
     }
 }
