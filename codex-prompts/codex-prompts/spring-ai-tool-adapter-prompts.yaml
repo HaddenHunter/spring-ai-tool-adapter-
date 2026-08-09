@@ -1,0 +1,481 @@
+# =============================================================================
+# Spring AI Tool Adapter — Codex Loop Prompt Chain
+# =============================================================================
+# 用法：Codex 按 phase 顺序加载，每完成一个 phase，
+#       读取 output.contract_summary 作为下一 phase 的 input.contracts
+# 全局约束对所有 phase 生效，除非该 phase 显式 override
+# =============================================================================
+
+meta:
+  project: spring-ai-tool-adapter
+  version: 0.1.0
+  target_jdk: ["8", "17"]
+  build_tool: maven
+  license: Apache-2.0
+  description: >
+    企业级 AI Tool Calling 适配器，将 Spring Bean 方法自动暴露为
+    LLM 可调用的 Tool，内置权限、审计、脱敏、审批、任务编排。
+
+# =============================================================================
+# 全局约束（每个 phase 都继承，除非显式 override）
+# =============================================================================
+global_constraints:
+  language: java
+  code_style:
+    - 所有公共 API 必须有 JavaDoc（英文 + 中文）
+    - 所有 SPI 接口必须面向扩展（接口隔离）
+    - 所有配置项必须支持外部化（@ConfigurationProperties）
+    - 禁止使用 lombok（保证可读性）
+    - 禁止使用 Spring Cloud / Reactor（除非 phase 显式允许）
+
+  forbidden:
+    - 不在 adapter-core 中写 Controller / Web 层
+    - 不在 adapter-core 中写 HTML / JS / 前端资源
+    - 不引入业务实现，只写框架能力
+    - 不直接调用 LLM API（由 ChatClient 抽象层负责）
+    - 不使用 System.out，统一用 SLF4J
+
+  exception_policy:
+    - 所有异常必须分类：BusinessException / SystemException / SecurityException
+    - 所有异常必须携带 errorCode
+    - 所有异常必须可被序列化（用于审计日志）
+
+  test_policy:
+    - 每个公共类必须有单元测试
+    - 边界条件必须覆盖：null / 空集合 / 超长字符串 / 非法枚举
+    - 测试不依赖外部网络（使用 Mock / Embedded）
+
+  output_format:
+    - 仅输出 Java 代码 + 必要 XML/yml 配置
+    - 每个文件前标注 package 路径
+    - 末尾输出本轮 contract_summary（YAML 格式）
+    - 不输出解释性文字（除非 requested）
+
+# =============================================================================
+# Phase 0：地基与契约（只跑一次，后续 phase 依赖它的产出）
+# =============================================================================
+phases:
+
+  - id: phase-0
+    name: 地基与契约
+    goal: 定义模块边界、SPI 契约、异常体系、包结构
+    run_count: 1  # 只跑一次
+
+    input:
+      contracts: []  # 无前置依赖
+      assumptions: []
+
+    must_produce:
+      - artifact: 包结构定义
+        description: adapter-core 的完整 package 层级
+      - artifact: ToolDefinition 接口
+        description: 工具定义的核心契约，包含 name/description/parameters/metadata
+      - artifact: ToolMetadata 类
+        description: 工具的不可变元数据载体
+      - artifact: 异常体系
+        description: >
+          AiToolException（基类）
+          → AiToolRegistrationException（注册期）
+          → AiToolExecutionException（执行期）
+          → AiToolSecurityException（权限/脱敏）
+          每个异常必须有 errorCode + 构造函数重载
+      - artifact: 模块 pom.xml
+        description: adapter-core 的 Maven 配置，仅依赖 spring-boot-starter
+
+    forbidden_override: []  # 无覆盖
+
+    self_check:
+      - 所有接口方法是否有 JavaDoc
+      - 所有异常是否可被序列化
+      - 包结构是否避免循环依赖
+      - 是否引入了任何 forbidden 依赖
+
+    output:
+      contract_summary:
+        - ToolDefinition 接口签名
+        - ToolMetadata 字段清单
+        - 异常类层级图
+        - 包结构树
+
+  # ===========================================================================
+  # Phase 1：Tool 注册与元数据（可 Loop 多次）
+  # ===========================================================================
+  - id: phase-1
+    name: Tool 注册与元数据
+    goal: 扫描 Spring Bean 中的 @AiTool 注解，构建 ToolDefinition 注册中心
+
+    loop:
+      max_iterations: 3
+      convergence_condition: 注册中心线程安全 + 支持条件注册 + 零反射性能损耗
+
+    input:
+      contracts:
+        - from: phase-0
+          items: [ToolDefinition, ToolMetadata, AiToolRegistrationException]
+
+    must_produce:
+      - artifact: @AiTool 注解
+        description: >
+          包含 name / description / paramDescriptions[] /
+          requiresPermission / auditLevel / enabled
+      - artifact: @Sensitive 注解
+        description: 标记参数或字段的脱敏类型（MOBILE / ID_CARD / BANK_CARD / CUSTOM）
+      - artifact: AiToolRegistrar
+        description: >
+          实现 BeanPostProcessor，扫描所有 Bean 的方法，
+          发现 @AiTool → 构建 ToolDefinition → 注册到 Registry
+          必须处理：重载方法、继承方法、CGLIB 代理
+      - artifact: ToolRegistry
+        description: >
+          只读注册中心，提供按 name 查询 / 按 group 查询 / 列出全部
+          线程安全（ConcurrentHashMap）
+          工具名全局唯一校验在注册时完成
+      - artifact: ToolGroup 注解（可选）
+        description: 将工具分组（finance / customer / operation）
+
+    self_check:
+      - 并发注册是否安全（Spring 启动期多线程场景）
+      - 工具名冲突时是否抛明确异常
+      - CGLIB 代理类是否能被正确扫描
+      - 条件注册（@ConditionalOnProperty）是否生效
+      - 反射性能是否可接受（是否需要 MethodHandle 缓存）
+
+    loop_next:
+      condition: 发现反射性能瓶颈
+      action: 引入 MethodHandle 缓存层，下一轮优化调用链路
+
+    output:
+      contract_summary:
+        - ToolRegistry 查询 API
+        - AiToolRegistrar 扫描规则
+        - @AiTool 注解完整字段
+        - 已知限制与假设
+
+  # ===========================================================================
+  # Phase 2：Schema 生成与模型适配
+  # ===========================================================================
+  - id: phase-2
+    name: Schema 生成与模型适配
+    goal: 将 ToolDefinition 转换为各 LLM 厂商的 Tool Schema
+
+    loop:
+      max_iterations: 3
+      convergence_condition: 支持 OpenAI / DeepSeek / 通义 / 豆包 / Ollama 五种 Schema
+
+    input:
+      contracts:
+        - from: phase-0
+          items: [ToolDefinition, ToolMetadata]
+        - from: phase-1
+          items: [ToolRegistry]
+
+    must_produce:
+      - artifact: ToolSchemaConverter 接口
+        description: >
+          统一入口：convert(ToolDefinition) → Object（各模型 Schema 对象）
+      - artifact: OpenAIFunctionSchemaConverter
+        description: 生成 OpenAI Function Call JSON Schema
+      - artifact: DeepSeekSchemaConverter
+        description: DeepSeek 兼容 OpenAI 格式，字段映射验证
+      - artifact: TongyiQwenSchemaConverter
+        description: 通义千问 Schema 适配（注意参数描述字段名差异）
+      - artifact: DoubaoSchemaConverter
+        description: 豆包 Schema 适配
+      - artifact: OllamaSchemaConverter
+        description: Ollama 本地模型 Schema（兼容 OpenAI 格式）
+      - artifact: Schema 字段映射表
+        description: 各模型 Schema 字段差异对照（YAML / Markdown）
+      - artifact: 参数类型映射
+        description: >
+          Java 类型 → JSON Schema 类型映射规则：
+          Long/Integer → integer
+          BigDecimal → number
+          Enum → string + enum 数组
+          List<T> → array
+          不支持的复杂 POJO → 显式抛异常
+
+    self_check:
+      - 各 Converter 输出是否可被对应模型 API 直接消费
+      - 枚举值是否正确导出
+      - 默认值是否传递
+      - 必填字段是否正确标记
+      - 不支持的 Java 类型是否有明确错误信息
+
+    loop_next:
+      condition: 新增模型支持需求
+      action: 新增 Converter 实现，不修改接口
+
+    output:
+      contract_summary:
+        - ToolSchemaConverter 接口签名
+        - 各 Converter 类名 + 适用模型
+        - 参数类型映射规则表
+        - 已知模型差异点
+
+  # ===========================================================================
+  # Phase 3：执行引擎与安全治理
+  # ===========================================================================
+  - id: phase-3
+    name: 执行引擎与安全治理
+    goal: 安全执行 Tool 调用，嵌入权限校验、参数脱敏、审计日志
+
+    loop:
+      max_iterations: 5
+      convergence_condition: 权限/脱敏/审计全部 SPI 化 + 异步审计不阻塞主流程
+
+    input:
+      contracts:
+        - from: phase-0
+          items: [ToolDefinition, ToolMetadata, AiToolExecutionException, AiToolSecurityException]
+        - from: phase-1
+          items: [ToolRegistry]
+        - from: phase-2
+          items: [ToolSchemaConverter]
+
+    must_produce:
+      - artifact: ToolExecutor 接口
+        description: >
+          核心方法：execute(toolName, jsonArguments, executionContext) → ToolResult
+      - artifact: DefaultToolExecutor
+        description: >
+          执行流程：
+          1. 从 Registry 查 ToolDefinition
+          2. JSON → Java 参数绑定（类型转换）
+          3. 调用 PermissionChecker.check()
+          4. 参数脱敏（SensitiveMasker）
+          5. 执行目标方法（MethodHandle）
+          6. 结果序列化
+          7. 调用 AuditLogger.log()
+          8. 返回 ToolResult
+      - artifact: ExecutionContext
+        description: >
+          执行上下文：currentUser / tenantId / traceId / permissions / requestTime
+      - artifact: PermissionChecker SPI
+        description: >
+          接口：check(ToolDefinition, ExecutionContext) → void / throw SecurityException
+          默认实现：基于 Spring Security + SpEL 表达式
+      - artifact: SensitiveMasker SPI
+        description: >
+          接口：mask(value, SensitiveType) → maskedValue
+          内置实现：手机号/身份证/银行卡/姓名/自定义正则
+      - artifact: AuditLogger SPI
+        description: >
+          接口：log(AuditRecord) → void
+          内置实现：异步写入数据库（@Async）
+          AuditRecord 字段：traceId / toolName / callerUser / tenantId /
+          inputHash / outputHash / costMs / status / errorMessage
+      - artifact: ToolResult
+        description: >
+          执行结果封装：success / data / errorCode / errorMessage / costMs
+      - artifact: 超时控制
+        description: 每个 Tool 可配置超时（默认 10s），超时抛 AiToolExecutionException
+
+    self_check:
+      - 权限校验失败是否泄露业务数据
+      - 审计日志是否异步（不阻塞主流程）
+      - 参数脱敏是否在调用前完成
+      - 超时控制是否生效
+      - 异常是否被分类捕获并正确包装
+      - 幂等 Tool 是否可安全重试
+
+    loop_next:
+      condition: 审计性能瓶颈
+      action: 引入批量写入 / 消息队列缓冲
+      condition: 权限模型不足
+      action: 扩展 PermissionChecker 支持数据权限（部门/租户）
+      condition: 新脱敏规则
+      action: 新增 SensitiveMasker 实现
+
+    output:
+      contract_summary:
+        - ToolExecutor 执行链路
+        - SPI 扩展点清单（PermissionChecker / SensitiveMasker / AuditLogger）
+        - AuditRecord 完整字段
+        - 超时与降级策略
+
+  # ===========================================================================
+  # Phase 4：对话中枢与任务编排
+  # ===========================================================================
+  - id: phase-4
+    name: 对话中枢与任务编排
+    goal: 将 Tool 组合成多步任务，支持多轮对话、人工审批、条件分支
+
+    loop:
+      max_iterations: 4
+      convergence_condition: 支持 DAG 编排 + 人工节点 + 自动回滚
+
+    input:
+      contracts:
+        - from: phase-0
+          items: [ToolDefinition, AiToolExecutionException]
+        - from: phase-1
+          items: [ToolRegistry]
+        - from: phase-3
+          items: [ToolExecutor, ExecutionContext, AuditLogger]
+
+    must_produce:
+      - artifact: ConversationContext
+        description: >
+          多轮对话上下文：sessionId / userId / tenantId / messageHistory /
+          activeTask / pendingApprovals / variables
+      - artifact: TaskDefinition
+        description: >
+          DAG 任务定义：节点列表 + 边列表 + 变量映射
+          节点类型：TOOL / CONDITION / HUMAN_APPROVAL / SUB_TASK
+      - artifact: TaskExecutor
+        description: >
+          执行 DAG：拓扑排序 → 按序执行 → 处理分支 → 等待人工节点 → 汇总结果
+      - artifact: HumanInTheLoop SPI
+        description: >
+          接口：requestApproval(approvalRequest) → ApprovalResponse
+          默认实现：基于企微/钉钉 Webhook + 轮询
+          超时策略：可配置（默认 30 分钟）
+      - artifact: ApprovalRequest / ApprovalResponse
+        description: 审批请求与响应模型
+      - artifact: TaskRollback
+        description: >
+          支持可回滚节点（标注 @Rollbackable）
+          回滚时逆序执行补偿操作
+      - artifact: PromptTemplateBuilder
+        description: >
+          动态构建 System Prompt：
+          1. 角色定义
+          2. 可用 Tool 列表（从 Registry 自动拼接）
+          3. 当前任务上下文
+          4. 安全约束
+          5. 输出格式要求
+      - artifact: ChatOrchestrator
+        description: >
+          对话编排器：接收用户输入 → 构建 Prompt → 调用 ChatClient →
+          解析 Tool Call → 执行 → 返回结果 → 更新 Context
+
+    self_check:
+      - DAG 是否有环检测
+      - 人工节点超时是否正确处理
+      - 任务变量是否在节点间正确传递
+      - 回滚是否幂等
+      - Prompt 模板是否可外部化（Nacos / DB / 文件）
+      - 上下文压缩策略是否存在（防止 token 爆）
+
+    loop_next:
+      condition: 新编排模式需求
+      action: 新增 TaskExecutor 策略
+      condition: 新审批渠道
+      action: 新增 HumanInTheLoop 实现
+
+    output:
+      contract_summary:
+        - TaskDefinition DAG 结构
+        - ChatOrchestrator 执行流程
+        - SPI 扩展点（HumanInTheLoop / PromptTemplateBuilder）
+        - 审批与回滚策略
+
+  # ===========================================================================
+  # Phase 5：Demo 与可观测性（收口）
+  # ===========================================================================
+  - id: phase-5
+    name: Demo 与可观测性
+    goal: 提供开箱即用的 Demo + 完整可观测能力
+
+    loop:
+      max_iterations: 2
+      convergence_condition: docker compose up 后 30 秒内可对话
+
+    input:
+      contracts:
+        - from: phase-1
+          items: [ToolRegistry, @AiTool]
+        - from: phase-2
+          items: [ToolSchemaConverter]
+        - from: phase-3
+          items: [ToolExecutor, AuditLogger]
+        - from: phase-4
+          items: [ChatOrchestrator, ConversationContext]
+
+    must_produce:
+      # ---- Demo 模块 ----
+      - artifact: adapter-demo Maven 模块
+        description: 独立模块，依赖 adapter-core
+      - artifact: Demo Tool 集合
+        description: >
+          Mock 工具（无副作用）：
+          - mock_query_user_balance
+          - mock_send_sms
+          - mock_create_order
+          - mock_query_weather
+          - mock_query_complaint_customer
+      - artifact: ChatController
+        description: >
+          Demo 专用 Controller：
+          POST /api/chat（发送消息）
+          GET /api/chat/stream（SSE 流式）
+          GET /api/tools（列出可用工具）
+      - artifact: Chat 页面（Thymeleaf + 原生 JS）
+        description: >
+          路径：/chat
+          左侧：消息流 + Tool 调用卡片（可折叠展开）
+          右侧：可用工具列表 + 当前用户 + Token 消耗
+          底部：调试面板（查看 Prompt / Schema / 审计日志）
+      - artifact: Docker Compose
+        description: >
+          服务：app（Spring Boot）+ ollama（本地 LLM）
+          环境变量：AI_MODEL_TYPE / OLLAMA_BASE_URL
+          端口：8080
+
+      # ---- 可观测性 ----
+      - artifact: MetricsCollector
+        description: >
+          指标：tool_call_total / tool_call_duration / tool_call_error_total /
+          token_usage_total / active_conversations
+      - artifact: Prometheus 集成
+        description: 暴露 /actuator/prometheus 端点
+      - artifact: AuditLogQueryController（Demo 用）
+        description: >
+          GET /api/audit/logs（分页查询审计日志）
+          GET /api/audit/conversation/{sessionId}（回放对话）
+      - artifact: README.md（中英双语）
+        description: >
+          包含：项目介绍 / 三步快速启动 / 示例对话指令 /
+          架构图 / Roadmap / 贡献指南
+
+    self_check:
+      - Demo 是否可在无网络环境运行（Ollama 本地）
+      - Chat 页面是否不依赖任何前端构建工具
+      - Docker Compose 是否一键启动
+      - 指标是否可关闭（生产环境可选）
+      - README 三步体验是否 5 分钟内完成
+
+    output:
+      contract_summary:
+        - Demo 启动方式
+        - 示例对话指令清单
+        - 可观测指标清单
+        - 项目 README 结构
+
+# =============================================================================
+# 自动链路传递规则（Codex 引擎读取）
+# =============================================================================
+chain_rules:
+  contract_passing:
+    enabled: true
+    rule: 每个 phase 的 output.contract_summary 自动注入下一 phase 的 input.contracts
+  loop_memory:
+    enabled: true
+    rule: 每个 phase 的 self_check 结果和 loop_next 决策保留到下一 iteration
+  convergence:
+    rule: 达到 max_iterations 或 convergence_condition 时自动进入下一 phase
+  rollback:
+    rule: 若某 phase 的 self_check 发现阻塞性 issue，回退到上一 phase 重新生成
+
+# =============================================================================
+# 最终交付清单（所有 phase 完成后验证）
+# =============================================================================
+final_deliverables:
+  - adapter-core 模块（所有 SPI + 默认实现）
+  - adapter-demo 模块（Chat UI + Mock Tools + Docker Compose）
+  - 完整单元测试（覆盖率 ≥ 70%）
+  - README.md（中英双语）
+  - architecture.md（架构图 + 模块说明）
+  - roadmap.md（v0.x → v3.x 演进计划）
+  - docker-compose.yml（一键启动）
+  - prometheus.yml（指标采集配置）

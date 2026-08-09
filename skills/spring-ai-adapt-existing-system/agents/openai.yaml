@@ -1,0 +1,6 @@
+interface:
+  display_name: "Spring AI Adapter Migration"
+  short_description: "Adapt existing Spring systems to AI tools"
+  default_prompt: "Use $spring-ai-adapt-existing-system to analyze this Spring project and generate governed Spring AI Tool Adapter integration code."
+policy:
+  allow_implicit_invocation: true

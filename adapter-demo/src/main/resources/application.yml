@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+ai:
+  tool:
+    enabled: true
+    default-timeout-millis: 10000
+    fallback:
+      enabled: true
+      message: "该工具暂时不可用，请稍后重试"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true

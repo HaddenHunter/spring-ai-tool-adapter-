@@ -1,0 +1,232 @@
+# =============================================================================
+# Loop 收敛判定标准 — Codex 自动读取
+# 每个 phase 完成后，Codex 逐项检查，全部 PASS 则收敛
+# =============================================================================
+
+phase-0:
+  name: 地基与契约
+  convergence_type: binary  # 只跑一次，不存在循环
+  must_pass:
+    - check: ToolDefinition 接口存在且方法签名完整
+      verify: 接口包含 getName() / getDescription() / getParameters() / getMetadata()
+    - check: ToolMetadata 是不可变对象
+      verify: 无 setter，所有字段 final，Builder 模式
+    - check: 异常体系完整
+      verify: AiToolException 为基类，三个子类存在且有 errorCode 字段
+    - check: 包结构无循环依赖
+      verify: 各 package 单向依赖，可画出 DAG
+
+  on_failure: 阻塞，不可进入 phase-1
+
+# =============================================================================
+
+phase-1:
+  name: Tool 注册与元数据
+  convergence_type: iterative
+  max_iterations: 3
+
+  criteria:
+    - id: C1
+      description: 注册中心线程安全
+      verify_method: 并发测试 100 线程同时注册，无丢失无重复
+      pass_threshold: 零异常 + 注册数量 == 预期数量
+
+    - id: C2
+      description: 工具名全局唯一
+      verify_method: 注册两个同名工具，第二个抛 AiToolRegistrationException
+      pass_threshold: 异常类型正确 + errorCode 明确
+
+    - id: C3
+      description: CGLIB 代理类可扫描
+      verify_method: 用 @Transactional Bean 测试，方法上的 @AiTool 能被发现
+      pass_threshold: 工具被正确注册
+
+    - id: C4
+      description: 条件注册生效
+      verify_method: 配置 ai.tool.xxx.enabled=false，该工具不被注册
+      pass_threshold: Registry 中不存在该工具
+
+    - id: C5
+      description: 反射性能可接受
+      verify_method: 10000 次工具调用耗时 < 1000ms
+      pass_threshold: 平均单次 < 0.1ms
+
+  convergence: 全部 criteria PASS → 收敛
+  on_partial: 标记未通过项，记录到 next_phase_input.risks
+
+# =============================================================================
+
+phase-2:
+  name: Schema 生成与模型适配
+  convergence_type: iterative
+  max_iterations: 3
+
+  criteria:
+    - id: C1
+      description: OpenAI Schema 格式正确
+      verify_method: 输出 JSON 包含 type/function/name/description/parameters
+      pass_threshold: JSON Schema 可通过 OpenAI API 校验
+
+    - id: C2
+      description: 枚举类型正确导出
+      verify_method: 参数为 Enum 时，Schema 包含 enum 数组
+      pass_threshold: enum 值完整 + 类型 string
+
+    - id: C3
+      description: 默认值传递
+      verify_method: 参数有 defaultValue 时，Schema 包含 default 字段
+      pass_threshold: 字段值正确
+
+    - id: C4
+      description: 必填字段标记
+      verify_method: 无 @Nullable 的参数出现在 required 数组中
+      pass_threshold: required 数组正确
+
+    - id: C5
+      description: 五模型全覆盖
+      verify_method: OpenAI / DeepSeek / 通义 / 豆包 / Ollama 各跑一遍
+      pass_threshold: 五个 Converter 输出均可通过对应模型 API 校验
+
+    - id: C6
+      description: 不支持类型有明确错误
+      verify_method: 参数为复杂 POJO 时抛 AiToolRegistrationException
+      pass_threshold: 异常 message 包含参数名 + 不支持的原因
+
+  convergence: C1-C5 全部 PASS → 收敛
+  on_partial: 记录未通过模型，标记为 known_limitation
+
+# =============================================================================
+
+phase-3:
+  name: 执行引擎与安全治理
+  convergence_type: iterative
+  max_iterations: 5
+
+  criteria:
+    - id: C1
+      description: 参数绑定正确
+      verify_method: JSON 参数 → Java 对象，覆盖 Long/String/Enum/List/Boolean
+      pass_threshold: 所有类型转换正确
+
+    - id: C2
+      description: 权限校验生效
+      verify_method: 无权限用户调用 → 抛 AiToolSecurityException
+      pass_threshold: 异常类型 + errorCode 正确
+
+    - id: C3
+      description: 参数脱敏生效
+      verify_method: 手机号/身份证传入 → 审计日志中不可见原文
+      pass_threshold: 审计表中只存脱敏后值
+
+    - id: C4
+      description: 审计日志不阻塞主流程
+      verify_method: 审计写入耗时 5s → 工具调用耗时不受影响
+      pass_threshold: 工具返回时间 < 100ms（异步生效）
+
+    - id: C5
+      description: 超时控制生效
+      verify_method: 工具执行 15s → 10s 时抛 AiToolExecutionException
+      pass_threshold: 异常类型 + 超时时间正确
+
+    - id: C6
+      description: 异常分类正确
+      verify_method: 权限异常 / 参数异常 / 业务异常分别抛出不同子类
+      pass_threshold: catch 块能正确区分
+
+    - id: C7
+      description: SPI 可插拔
+      verify_method: 自定义 PermissionChecker 实现 → 被自动加载
+      pass_threshold: Spring SPI 机制生效
+
+  convergence: 全部 criteria PASS → 收敛
+  on_partial: 按未通过项进入对应 loop_next 分支
+
+# =============================================================================
+
+phase-4:
+  name: 对话中枢与任务编排
+  convergence_type: iterative
+  max_iterations: 4
+
+  criteria:
+    - id: C1
+      description: DAG 无环检测
+      verify_method: 构造有环任务 → 抛 IllegalArgumentException
+      pass_threshold: 异常 message 指出环路径
+
+    - id: C2
+      description: 多轮对话上下文正确
+      verify_method: 第一轮追问参数 → 第二轮携带上下文执行
+      pass_threshold: ConversationContext 变量正确传递
+
+    - id: C3
+      description: 人工审批节点阻塞
+      verify_method: 审批节点等待 → 超时 → 任务状态 = PENDING_TIMEOUT
+      pass_threshold: 状态正确 + 超时回调执行
+
+    - id: C4
+      description: 任务回滚正确
+      verify_method: 标注 @Rollbackable 的节点失败 → 逆序执行补偿
+      pass_threshold: 补偿方法被调用 + 数据恢复
+
+    - id: C5
+      description: Prompt 模板自动拼接 Tool 列表
+      verify_method: Registry 有 5 个工具 → Prompt 包含 5 个工具描述
+      pass_threshold: 数量 + 内容正确
+
+    - id: C6
+      description: 上下文压缩策略存在
+      verify_method: 对话超过 20 轮 → 自动压缩历史
+      pass_threshold: token 数控制在模型限制内
+
+  convergence: C1-C5 全部 PASS → 收敛
+  on_partial: 记录未通过项，进入对应 loop_next
+
+# =============================================================================
+
+phase-5:
+  name: Demo 与可观测性
+  convergence_type: binary  # 验证型，不循环
+  max_iterations: 2
+
+  criteria:
+    - id: C1
+      description: Docker Compose 一键启动
+      verify_method: docker compose up → 30s 内服务可用
+      pass_threshold: curl localhost:8080/chat 返回 200
+
+    - id: C2
+      description: Chat 页面可对话
+      verify_method: 浏览器打开 /chat → 输入消息 → 收到回复
+      pass_threshold: 端到端可用
+
+    - id: C3
+      description: Tool 调用可视化
+      verify_method: 发送触发 Tool 的消息 → 页面展示 Tool 卡片
+      pass_threshold: 卡片包含工具名 + 参数 + 结果
+
+    - id: C4
+      description: 审计日志可查询
+      verify_method: GET /api/audit/logs → 返回本次对话记录
+      pass_threshold: 记录完整 + 脱敏生效
+
+    - id: C5
+      description: Prometheus 指标可采集
+      verify_method: curl /actuator/prometheus → 包含 tool_call_total
+      pass_threshold: 指标值 > 0
+
+    - id: C6
+      description: README 三步体验
+      verify_method: 新人不看文档之外的内容，5 分钟内跑通
+      pass_threshold: 主观验证 + 无报错
+
+  convergence: 全部 PASS → 项目可发布
+  on_partial: 记录阻塞项，标记为 v0.2 待办
+
+# =============================================================================
+# 全局收敛元规则
+# =============================================================================
+global:
+  fail_fast: true  # 任一 phase 的 blocking criteria 失败 → 停止后续 phase
+  contract_propagation: strict  # 契约缺失 → 后续 phase 不可启动
+  iteration_log: required  # 每次迭代必须输出 iteration_N_log.yaml

@@ -1,0 +1,76 @@
+meta:
+  project: spring-ai-tool-adapter
+  purpose: Codex phase prompts for iterative implementation.
+
+phase-3.5:
+  name: Tool Governance Annotations
+  input_contract:
+    - ToolExecutor
+    - ToolMetadata
+  must_produce:
+    - @AiToolRequiresPermission
+    - @AiToolRiskLevel
+    - @AiToolAudit
+    - @AiToolSensitive
+    - @AiToolContextKey
+    - ToolMetadata enrichment logic
+  self_check:
+    - annotations must not contain business logic
+    - metadata must be immutable
+    - all governance concerns must be declarative
+  convergence_condition:
+    - governance annotations are exposed through ToolMetadata
+    - existing @AiTool contracts remain backward compatible
+    - execution engine can read metadata without knowing business policy
+
+phase-4:
+  name: Conversation Context & Task Orchestration
+  input_contract:
+    - ToolExecutor
+    - Audit SPI
+  must_produce:
+    - ConversationSession interface
+    - TaskContext model
+    - UserChoiceTracker
+    - ContextCompressor SPI
+    - ContextSnapshot for audit replay
+  self_check:
+    - session must be portable across transports
+    - context must survive tool execution failure
+    - user choice must be replayable
+    - compression must not lose confirmed facts
+    - adapter-core must not depend on raw HTTP session
+    - conversational memory must be auditable
+  loop_trigger:
+    - if token usage exceeds threshold -> improve compressor
+    - if task state lost -> redesign context model
+    - if confirmed choice is asked twice -> fix UserChoiceTracker
+    - if audit cannot replay context -> add ContextSnapshot event
+  convergence_condition:
+    - session abstraction is transport-neutral
+    - task state advances through INIT/COLLECTING/CONFIRMING/EXECUTING/DONE
+    - confirmed choices are persisted as immutable facts
+    - context snapshots exist before and after tool execution
+
+phase-4.5:
+  name: Semantic MCP Skill Provisioning
+  input_contract:
+    - ConversationSession
+    - TaskContext
+    - Audit SPI
+    - Governance metadata
+  must_produce:
+    - McpCapabilityCatalog SPI
+    - McpSemanticMatcher SPI
+    - McpProvisioningPlanner
+    - permission-aware provisioning plan
+    - approval-gated MCP enablement boundary
+  self_check:
+    - semantic matching must not directly install external MCP servers
+    - high-risk MCP capabilities must require approval
+    - missing permission must block provisioning
+    - provisioning plan must be auditable and replayable
+  convergence_condition:
+    - natural language can resolve to an MCP capability plan
+    - plan exposes risk, permission, and approval status
+    - enterprise code can replace matcher and catalog through SPI

@@ -1,0 +1,26 @@
+meta:
+  project: spring-ai-tool-adapter
+  boundary: conversation-context
+
+allowed:
+  - conversation context management
+  - session-scoped state persistence
+  - user choice tracking across turns
+  - context snapshots for audit replay
+  - context compression as structured business facts
+  - portable session abstraction across Web, WebSocket, WeCom, DingTalk, Feishu, CLI, and API
+
+forbidden:
+  - no raw http session coupling in adapter-core
+  - no ui state management in adapter-core
+  - no conversational memory without audit
+  - no raw message history as the only source of context
+  - no LLM-only summary as the source of truth
+  - no confirmed choice mutation without a compensating audit event
+
+design_constraints:
+  - adapter-core owns contracts, not transport implementations
+  - context facts must be structured, minimal, auditable, and reversible
+  - tool execution failure must not erase task or choice state
+  - high-risk action state must support human approval checkpoints
+  - context persistence must be scoped by tenantId and sessionId

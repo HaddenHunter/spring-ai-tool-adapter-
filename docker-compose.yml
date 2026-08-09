@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      AI_MODEL_TYPE: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"

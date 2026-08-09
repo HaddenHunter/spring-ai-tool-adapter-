@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spring AI Tool Adapter Demo</title>
+  <style>
+    :root{color-scheme:light;--bg:#eef1f5;--panel:#fff;--line:#d8dee8;--text:#1d2433;--muted:#667085;--blue:#2463eb;--green:#0f9f6e;--amber:#b7791f;--red:#d92d20;--ink:#101828}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+    button,input,select,textarea{font:inherit}
+    button{height:34px;border:0;border-radius:6px;background:var(--blue);color:#fff;padding:0 12px;cursor:pointer}
+    button.secondary{background:#344054}
+    button.ghost{background:#f2f4f7;color:#344054;border:1px solid var(--line)}
+    h1,h2,h3{margin:0;color:var(--ink)}
+    h1{font-size:20px}
+    h2{font-size:15px}
+    h3{font-size:13px}
+    label{display:block;margin:10px 0 6px;font-size:12px;font-weight:700;color:#475467}
+    select,input,textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text)}
+    select,input{height:34px;padding:0 10px}
+    textarea{min-height:78px;padding:10px;resize:vertical}
+    pre{margin:0;white-space:pre-wrap;word-break:break-word;background:#111827;color:#e5e7eb;border-radius:6px;padding:12px;min-height:170px;max-height:320px;overflow:auto}
+    .shell{display:grid;grid-template-columns:minmax(360px,1.2fr) minmax(360px,1fr) 320px;grid-template-rows:auto 260px;gap:14px;min-height:100vh;padding:16px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .panel-body{padding:14px}
+    .conversation{grid-row:1 / span 2;display:grid;grid-template-rows:auto 1fr auto}
+    .messages{padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:360px}
+    .message{max-width:86%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#f8fafc;font-size:14px;line-height:1.45}
+    .message.user{align-self:flex-end;background:#e8f0ff;border-color:#b9cdfc}
+    .tool-card{border:1px solid #badbcc;border-radius:8px;background:#f0fdf4;overflow:hidden}
+    .tool-card summary{cursor:pointer;padding:10px 12px;font-weight:700;color:#066045}
+    .tool-card pre{border-radius:0;min-height:90px;max-height:210px}
+    .composer{padding:14px;border-top:1px solid var(--line);background:#fbfcfe}
+    .composer-row{display:grid;grid-template-columns:1fr 110px;gap:10px;margin-top:10px}
+    .task-visual{display:grid;grid-template-rows:auto 1fr}
+    .flow{display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:8px;padding:4px 0 16px}
+    .node{border:1px solid var(--line);border-radius:8px;padding:10px;background:#f8fafc;text-align:center;min-height:70px}
+    .node b{display:block;font-size:13px;margin-bottom:6px}
+    .status{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:3px 8px;font-size:12px;background:#eef2f6;color:#475467}
+    .status.ready{background:#e8f0ff;color:#1d4ed8}
+    .status.running{background:#fff4d6;color:#92400e}
+    .status.done{background:#dcfae6;color:#067647}
+    .connector{height:2px;background:#98a2b3}
+    .node-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .node-row{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff;font-size:13px}
+    .governance{grid-row:1 / span 2}
+    .stat{display:grid;grid-template-columns:1fr auto;gap:8px;border-bottom:1px solid #eef1f5;padding:9px 0;font-size:13px}
+    .tool-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;max-height:310px;overflow:auto}
+    .tool-item{border:1px solid var(--line);border-radius:6px;padding:8px;background:#fbfcfe}
+    .tool-item b{display:block;font-size:13px}
+    .tool-item span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.35}
+    .scope{display:inline-block;margin:4px 4px 0 0;padding:4px 7px;border-radius:99px;background:#eef4ff;color:#1849a9;font-size:12px}
+    .debug{grid-column:2;display:grid;grid-template-rows:auto 1fr}
+    .tabs{display:flex;gap:6px}
+    .tabs button{height:30px}
+    .tabs button.active{background:#0f172a}
+    .debug-body{padding:14px;overflow:auto}
+    .muted{color:var(--muted)}
+    .token-bar{height:8px;border-radius:99px;background:#eaecf0;overflow:hidden}
+    .token-fill{height:100%;width:0;background:var(--green)}
+    @media(max-width:1100px){.shell{grid-template-columns:1fr;grid-template-rows:auto}.conversation,.governance,.debug{grid-column:auto;grid-row:auto}.flow{grid-template-columns:1fr}.connector{height:16px;width:2px;margin:0 auto}.node-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <section class="panel conversation">
+    <div class="panel-head">
+      <div>
+        <h1>AI Tool Workbench</h1>
+        <span class="muted">Conversation, tool calls, governance, and debug trace</span>
+      </div>
+      <button class="ghost" onclick="refreshAll()">Refresh</button>
+    </div>
+    <div id="messages" class="messages">
+      <div class="message">Ready. Pick a tool, adjust arguments, then run it from the composer.</div>
+    </div>
+    <div class="composer">
+      <label for="tool">Tool</label>
+      <select id="tool" onchange="syncArgumentTemplate()"></select>
+      <label for="args">Arguments JSON</label>
+      <textarea id="args">{}</textarea>
+      <div class="composer-row">
+        <input id="userInput" value="Run the selected tool with these arguments">
+        <button onclick="send()">Run Tool</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel task-visual">
+    <div class="panel-head">
+      <h2>Current Task</h2>
+      <span id="taskStatus" class="status ready">READY</span>
+    </div>
+    <div class="panel-body">
+      <div class="flow">
+        <div class="node"><b>Entry Layer</b><span id="nodeInput" class="status ready">READY</span></div>
+        <div class="connector"></div>
+        <div class="node"><b>AI Hub</b><span id="nodeTool" class="status ready">WAITING</span></div>
+        <div class="connector"></div>
+        <div class="node"><b>Tool Adapter</b><span id="nodeAudit" class="status ready">WAITING</span></div>
+        <div class="connector"></div>
+        <div class="node"><b>Business System</b><span id="nodeResult" class="status ready">WAITING</span></div>
+      </div>
+      <div class="node-grid">
+        <div class="node-row"><span>Session</span><b id="sessionId">demo-session</b></div>
+        <div class="node-row"><span>Selected Tool</span><b id="selectedTool">-</b></div>
+        <div class="node-row"><span>Last Cost</span><b id="lastCost">0 ms</b></div>
+        <div class="node-row"><span>Last Status</span><b id="lastStatus">idle</b></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel governance">
+    <div class="panel-head">
+      <h2>Governance</h2>
+      <span class="status done">ACTIVE</span>
+    </div>
+    <div class="panel-body">
+      <div class="stat"><span>Current User</span><b id="currentUser">-</b></div>
+      <div class="stat"><span>Tenant</span><b id="tenantId">-</b></div>
+      <div class="stat"><span>Token Usage</span><b id="tokenText">0 / 0</b></div>
+      <div class="token-bar"><div id="tokenFill" class="token-fill"></div></div>
+      <h3 style="margin-top:16px">Permission Scopes</h3>
+      <div id="scopes"></div>
+      <h3 style="margin-top:16px">Available Tools</h3>
+      <div id="tools" class="tool-list"></div>
+    </div>
+  </aside>
+
+  <section class="panel debug">
+    <div class="panel-head">
+      <h2>Debug / Developer Mode</h2>
+      <div class="tabs">
+        <button id="tabPrompt" class="active" onclick="showDebug('prompt')">Prompt</button>
+        <button id="tabSchema" onclick="showDebug('schema')">Tool Schema</button>
+        <button id="tabAudit" onclick="showDebug('audit')">Audit Logs</button>
+      </div>
+    </div>
+    <div class="debug-body">
+      <pre id="debugOutput"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+let tools = [];
+let debugCache = {prompt:'', schema:'', audit:''};
+
+function pretty(value){ return JSON.stringify(value, null, 2); }
+
+async function refreshAll(){
+  await Promise.all([loadTools(), loadGovernance(), loadDebug()]);
+  showDebug('prompt');
+}
+
+async function loadTools(){
+  tools = await fetch('/api/tools').then(r=>r.json());
+  const toolSelect = document.getElementById('tool');
+  toolSelect.innerHTML = tools.map(t=>`<option value="${t.name}">${t.name}</option>`).join('');
+  document.getElementById('tools').innerHTML = tools.map(t=>`
+    <div class="tool-item">
+      <b>${t.name}</b>
+      <span>${t.description}</span>
+      <span>group: ${t.group || 'default'} | audit: ${t.auditLevel || 'NORMAL'}</span>
+    </div>`).join('');
+  syncArgumentTemplate();
+}
+
+async function loadGovernance(){
+  const data = await fetch('/api/governance').then(r=>r.json());
+  document.getElementById('currentUser').textContent = data.currentUser;
+  document.getElementById('tenantId').textContent = data.tenantId;
+  document.getElementById('tokenText').textContent = `${data.tokenUsed} / ${data.tokenBudget}`;
+  document.getElementById('tokenFill').style.width = `${Math.min(100, data.tokenUsed / data.tokenBudget * 100)}%`;
+  document.getElementById('scopes').innerHTML = data.permissionScopes.map(s=>`<span class="scope">${s}</span>`).join('');
+}
+
+async function loadDebug(){
+  const [prompt, schema, audit] = await Promise.all([
+    fetch('/api/debug/prompt').then(r=>r.json()),
+    fetch('/api/debug/schema').then(r=>r.json()),
+    fetch('/api/audit/logs').then(r=>r.json())
+  ]);
+  debugCache.prompt = prompt.prompt;
+  debugCache.schema = pretty(schema);
+  debugCache.audit = pretty(audit);
+}
+
+function showDebug(kind){
+  ['Prompt','Schema','Audit'].forEach(name => document.getElementById(`tab${name}`).classList.remove('active'));
+  document.getElementById(`tab${kind.charAt(0).toUpperCase()+kind.slice(1)}`).classList.add('active');
+  document.getElementById('debugOutput').textContent = debugCache[kind] || '';
+}
+
+function syncArgumentTemplate(){
+  const selected = tools.find(t=>t.name === document.getElementById('tool').value);
+  document.getElementById('selectedTool').textContent = selected ? selected.name : '-';
+  if (!selected) return;
+  const args = {};
+  selected.parameters.forEach(p => {
+    if (p.type === 'String') args[p.name] = p.name.toLowerCase().includes('city') ? 'Shanghai' : 'demo';
+    else if (p.type === 'Double' || p.type === 'BigDecimal') args[p.name] = 99.9;
+    else if (p.type === 'Integer' || p.type === 'Long') args[p.name] = 1;
+    else args[p.name] = null;
+  });
+  document.getElementById('args').value = pretty(args);
+}
+
+function setStatus(phase){
+  const running = phase === 'running';
+  const done = phase === 'done';
+  document.getElementById('taskStatus').textContent = running ? 'RUNNING' : done ? 'DONE' : 'READY';
+  document.getElementById('taskStatus').className = `status ${running ? 'running' : done ? 'done' : 'ready'}`;
+  const statuses = new Array(
+    ['nodeInput','READY'],
+    ['nodeTool',running?'RUNNING':done?'DONE':'WAITING'],
+    ['nodeAudit',done?'DONE':'WAITING'],
+    ['nodeResult',done?'DONE':'WAITING']
+  );
+  statuses.forEach(([id,text]) => {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = `status ${text === 'RUNNING' ? 'running' : text === 'DONE' ? 'done' : 'ready'}`;
+    });
+}
+
+function addMessage(content, type){
+  const div = document.createElement('div');
+  div.className = `message ${type || ''}`;
+  div.textContent = content;
+  document.getElementById('messages').appendChild(div);
+  div.scrollIntoView({block:'end'});
+}
+
+function addToolCard(toolName, payload){
+  const card = document.createElement('details');
+  card.className = 'tool-card';
+  card.open = true;
+  card.innerHTML = `<summary>${toolName}</summary><pre>${pretty(payload)}</pre>`;
+  document.getElementById('messages').appendChild(card);
+  card.scrollIntoView({block:'end'});
+}
+
+async function send(){
+  const toolName = document.getElementById('tool').value;
+  const argumentsJson = document.getElementById('args').value;
+  addMessage(document.getElementById('userInput').value, 'user');
+  setStatus('running');
+  const res = await fetch('/api/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({toolName:toolName, arguments:argumentsJson})
+  }).then(r=>r.json());
+  addToolCard(toolName, res);
+  document.getElementById('lastCost').textContent = `${res.result.costMs} ms`;
+  document.getElementById('lastStatus').textContent = res.result.success ? 'success' : 'failed';
+  setStatus('done');
+  await loadDebug();
+  showDebug('audit');
+}
+
+refreshAll();
+</script>
+</body>
+</html>

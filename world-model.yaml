@@ -1,0 +1,112 @@
+meta:
+  project: spring-ai-tool-adapter
+  version: 0.1.0
+  purpose: >
+    Define the stable product worldview for Tool Adapter, Conversation Context,
+    and business-process orchestration.
+
+core_axioms:
+  - tools are business capabilities, not functions
+  - every tool call is observable
+  - every decision is reversible
+  - human is always in the loop for high-risk actions
+  - conversation is a business process, not a chat log
+  - context is the source of truth for multi-step tasks
+
+interaction_model:
+  context_is_not:
+    - not raw message history
+    - not llm-generated summary only
+  context_is:
+    - structured business state
+    - minimal necessary facts for next decision
+    - auditable and reversible
+
+context_state_model:
+  session_state:
+    description: Who the session belongs to and where it comes from.
+    fields:
+      - sessionId
+      - tenantId
+      - userId
+      - role
+      - authScope
+      - modelProvider
+      - modelName
+    used_for:
+      - audit
+      - permission
+      - multi-tenancy
+      - model switching
+
+  task_state:
+    description: What business process is currently running and where it is.
+    fields:
+      - taskId
+      - taskType
+      - taskStatus
+      - currentStep
+      - pendingApproval
+    lifecycle:
+      - INIT
+      - COLLECTING
+      - CONFIRMING
+      - EXECUTING
+      - DONE
+    used_for:
+      - multi-turn business flow
+      - resume from breakpoint
+      - rollback
+
+  choice_state:
+    description: What the user has already selected or confirmed.
+    fields:
+      - selectedCustomerId
+      - selectedTemplateId
+      - selectedAmount
+      - confirmedByUser
+      - userOverrides
+    used_for:
+      - avoid repeated questions
+      - undo previous step
+      - modify previous step
+
+conversation_session:
+  contract:
+    - id: UUID
+    - tenantId: String
+    - userId: String
+    - attributes: Map<String, Object>
+    - lastUpdated: Instant
+  lifecycle:
+    - created on first user input
+    - mutated after each tool execution
+    - expired by ttl or explicit reset
+
+context_fact_rules:
+  invariant: every confirmed user choice must become an immutable fact in context
+  example:
+    user_input: send SMS to customer 1001
+    system_prompt: confirm template B
+    user_reply: approved
+    facts:
+      selectedCustomerId: "1001"
+      selectedTemplateId: "B"
+      confirmedByUser: true
+
+context_compression:
+  rules:
+    - preserve confirmed choices
+    - drop speculative tool calls
+    - summarize tool results into facts
+    - retain last N user utterances only
+  constraints:
+    - compressed context must be auditable
+    - compression must not lose user intent
+
+audit_scope:
+  includes:
+    - context snapshots before and after tool execution
+    - user choice confirmation events
+    - context compression events
+    - session reset events
