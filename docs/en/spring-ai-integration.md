@@ -87,6 +87,24 @@ public RefundResult refundOrder(Long orderId, BigDecimal amount) {
 }
 ```
 
+## Demo Approval Loop
+
+`adapter-demo` exposes a runnable ChatClient-style demo that uses the real `ToolCallbackProvider` bridge. The planner is deterministic so the demo works without an LLM API key, but tool execution still goes through Spring AI `ToolCallback` and then the governed adapter `ToolExecutor`.
+
+- `POST /api/spring-ai/chat`: plan from natural language and execute low-risk tools.
+- `GET /api/approvals`: list pending high-risk calls.
+- `POST /api/approvals/{approvalId}/approve`: approve and execute the stored call.
+- `POST /api/approvals/{approvalId}/reject`: reject the stored call.
+- `/chat?lang=zh&springai=approval-auto`: open the UI and automatically stop at the approval gate.
+
+![Spring AI approval demo](../spring-ai-approval-demo-zh.png)
+
+Example high-risk request:
+
+```json
+{"message":"Create an order for customer 1001 with amount 199.9"}
+```
+
 ## Context Mapping
 
 When Spring AI passes a `ToolContext`, the bridge maps these keys into the adapter `ExecutionContext`:

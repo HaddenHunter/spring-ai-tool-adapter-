@@ -22,6 +22,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.c8software.spring.ai</groupId>
+            <artifactId>spring-ai-tool-adapter-spring-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>

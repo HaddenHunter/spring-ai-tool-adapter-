@@ -62,6 +62,16 @@ The adapter can turn natural-language integration needs into an MCP provisioning
 
 Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring AI `ChatClient` or Spring AI Tool Calling. It exposes governed adapter tools as Spring AI `ToolCallbackProvider` callbacks while keeping permission checks, audit, timeout isolation, masking, Session + Context, and tool metadata inside this adapter. The bridge also provides ToolContext mapping and a ChatMemoryRepository aligned with adapter session ids.
 
+The demo also includes a Spring AI ChatClient-style flow with human approval:
+
+- Direct low-risk call: `POST /api/spring-ai/chat`
+- Pending approvals: `GET /api/approvals`
+- Approve and execute: `POST /api/approvals/{approvalId}/approve`
+- Reject: `POST /api/approvals/{approvalId}/reject`
+- UI shortcut: `/chat?lang=zh&springai=approval-auto`
+
+![Spring AI approval demo](docs/spring-ai-approval-demo-zh.png)
+
 ## Agent Harness
 
 Use `adapter-agent-harness` for Java-native v2 workflows with phases, steps, checkpoints, artifacts, review gates, repair loops, and human waiting nodes. It can invoke governed tools through `ToolAgentStepExecutor` and keeps AgentWeaver-style harness ideas as Java contracts.

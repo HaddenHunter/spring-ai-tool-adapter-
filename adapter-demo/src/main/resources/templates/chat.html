@@ -33,7 +33,9 @@
     .tool-card summary{cursor:pointer;padding:10px 12px;font-weight:700;color:#066045}
     .tool-card pre{border-radius:0;min-height:90px;max-height:210px}
     .composer{padding:14px;border-top:1px solid var(--line);background:#fbfcfe}
-    .composer-row{display:grid;grid-template-columns:1fr 110px;gap:10px;margin-top:10px}
+    .composer-row{display:grid;grid-template-columns:1fr 110px 130px;gap:10px;margin-top:10px}
+    .approval-actions{display:none;gap:8px;align-items:center;margin-top:10px;border:1px solid #fedf89;background:#fffaeb;border-radius:8px;padding:10px;font-size:13px}
+    .approval-actions span{flex:1;color:#7a2e0e}
     .task-visual{grid-column:2;grid-row:1;display:grid;grid-template-rows:auto 1fr}
     .flow{display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:8px;padding:4px 0 16px}
     .node{border:1px solid var(--line);border-radius:8px;padding:10px;background:#f8fafc;text-align:center;min-height:70px}
@@ -119,6 +121,12 @@
       <div class="composer-row">
         <input id="userInput" value="Run the selected tool with these arguments">
         <button id="runToolButton" onclick="send()">Run Tool</button>
+        <button id="springAiButton" class="secondary" onclick="springAiChat()">Spring AI</button>
+      </div>
+      <div id="approvalActions" class="approval-actions">
+        <span id="approvalText">Approval required</span>
+        <button id="approveButton" onclick="approvePending()">Approve</button>
+        <button id="rejectButton" class="ghost" onclick="rejectPending()">Reject</button>
       </div>
     </div>
   </section>
@@ -218,6 +226,10 @@ const I18N = {
     argsLabel: 'Arguments JSON',
     userInput: 'Run the selected tool with these arguments',
     runToolButton: 'Run Tool',
+    springAiButton: 'Spring AI',
+    approvalText: 'Approval required before high-risk execution.',
+    approveButton: 'Approve',
+    rejectButton: 'Reject',
     currentTaskTitle: 'Current Task',
     entryLayerLabel: 'Entry Layer',
     aiHubLabel: 'AI Hub',
@@ -283,6 +295,10 @@ const I18N = {
     argsLabel: '参数 JSON',
     userInput: '使用这些参数执行当前工具',
     runToolButton: '执行工具',
+    springAiButton: 'Spring AI',
+    approvalText: '高风险执行前需要人工审批。',
+    approveButton: '批准',
+    rejectButton: '拒绝',
     currentTaskTitle: '当前任务',
     entryLayerLabel: '对话入口层',
     aiHubLabel: 'AI 业务中枢',
@@ -350,6 +366,10 @@ const STATUS_TEXT = {
     BASELINE: '基线版',
     SUCCESS: '成功',
     ERROR: '错误',
+    PENDING_APPROVAL: '待审批',
+    APPROVED_AND_EXECUTED: '已批准并执行',
+    REJECTED: '已拒绝',
+    EXECUTED: '已执行',
     idle: '空闲',
     success: '成功',
     failed: '失败'
@@ -372,6 +392,7 @@ let tools = [];
 let currentAgentRunId = '';
 let currentAgentSpec = '';
 let agentWeaverInfo = {};
+let pendingApprovalId = '';
 let debugCache = {prompt:'', schema:'', audit:'', replay:'', agent:'', market:'', feedback:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
@@ -399,7 +420,7 @@ function applyLocale(){
   document.title = t('title');
   [
     'appTitle','appSubtitle','languageToggle','refreshButton','readyMessage','toolLabel','argsLabel',
-    'runToolButton','currentTaskTitle','entryLayerLabel','aiHubLabel','toolAdapterLabel','businessSystemLabel',
+    'runToolButton','springAiButton','approvalText','approveButton','rejectButton','currentTaskTitle','entryLayerLabel','aiHubLabel','toolAdapterLabel','businessSystemLabel',
     'sessionLabel','selectedToolLabel','lastCostLabel','lastStatusLabel','governanceTitle','currentUserLabel',
     'tenantLabel','v0StatusLabel','v1StatusLabel','v3StatusLabel','tokenUsageLabel','permissionScopesTitle',
     'availableToolsTitle','debugTitle','tabPrompt','tabSchema','tabAudit','tabReplay','tabAgent','tabMarket',
@@ -407,6 +428,11 @@ function applyLocale(){
   ].forEach(id => setText(id, id));
   const userInput = document.getElementById('userInput');
   if (userInput) userInput.value = t('userInput');
+  if (pageParams.get('springai') === 'approval' || pageParams.get('springai') === 'approval-auto') {
+    document.getElementById('userInput').value = locale === 'zh'
+      ? '给客户1001创建订单，金额199.9'
+      : 'Create an order for customer 1001 with amount 199.9';
+  }
   const active = document.getElementById('governanceActiveStatus');
   if (active) active.textContent = statusText('ACTIVE');
   setStatusClassText('taskStatus', 'READY');
@@ -705,6 +731,61 @@ function addToolCard(toolName, payload){
   card.scrollIntoView({block:'end'});
 }
 
+function showApproval(approval){
+  pendingApprovalId = approval && approval.approvalId ? approval.approvalId : '';
+  const actions = document.getElementById('approvalActions');
+  actions.style.display = pendingApprovalId ? 'flex' : 'none';
+  if (pendingApprovalId) {
+    document.getElementById('approvalText').textContent = `${t('approvalText')} ${approval.toolName} (${approval.riskLevel})`;
+  } else {
+    document.getElementById('approvalText').textContent = t('approvalText');
+  }
+}
+
+async function springAiChat(){
+  const visibleMessage = document.getElementById('userInput').value;
+  const plannerMessage = locale === 'zh' && visibleMessage.indexOf('订单') >= 0
+    ? 'Create an order for customer 1001 with amount 199.9'
+    : visibleMessage;
+  addMessage(visibleMessage, 'user');
+  setStatus('running');
+  const response = await fetch('/api/spring-ai/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({sessionId:'spring-ai-demo-session', message:plannerMessage})
+  });
+  const res = await response.json();
+  addToolCard(res.plannedToolName || 'spring-ai-chat-client', res);
+  document.getElementById('selectedTool').textContent = res.plannedToolName || '-';
+  document.getElementById('lastStatus').textContent = statusText(res.status || 'idle');
+  showApproval(res.approval);
+  setStatus(res.status === 'PENDING_APPROVAL' ? 'running' : 'done');
+  await loadDebug();
+  showDebug(res.status === 'PENDING_APPROVAL' ? 'replay' : 'audit');
+}
+
+async function approvePending(){
+  if (!pendingApprovalId) return;
+  const res = await fetch(`/api/approvals/${pendingApprovalId}/approve`,{method:'POST'}).then(r=>r.json());
+  addToolCard(res.plannedToolName || 'approval', res);
+  document.getElementById('lastStatus').textContent = statusText(res.status || 'success');
+  showApproval(null);
+  setStatus('done');
+  await loadDebug();
+  showDebug('audit');
+}
+
+async function rejectPending(){
+  if (!pendingApprovalId) return;
+  const res = await fetch(`/api/approvals/${pendingApprovalId}/reject`,{method:'POST'}).then(r=>r.json());
+  addToolCard(res.plannedToolName || 'approval', res);
+  document.getElementById('lastStatus').textContent = statusText(res.status || 'failed');
+  showApproval(null);
+  setStatus('done');
+  await loadDebug();
+  showDebug('replay');
+}
+
 async function send(){
   const toolName = document.getElementById('tool').value;
   const argumentsJson = document.getElementById('args').value;
@@ -726,6 +807,13 @@ async function send(){
 async function init(){
   applyLocale();
   await refreshAll();
+  if (pageParams.get('springai') === 'approval-auto') {
+    document.getElementById('userInput').value = locale === 'zh'
+      ? '给客户1001创建订单，金额199.9'
+      : 'Create an order for customer 1001 with amount 199.9';
+    await springAiChat();
+    return;
+  }
   if (pageParams.get('promo') === 'agentweaver') {
     document.body.classList.add('promo-agent');
     const state = pageParams.get('state') || 'completed';

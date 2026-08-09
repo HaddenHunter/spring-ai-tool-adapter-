@@ -82,6 +82,10 @@ public class ChatController {
 
     private final ArtifactStore artifactStore;
 
+    private final SpringAiChatClientDemoService springAiChatClientDemoService;
+
+    private final DemoApprovalStore demoApprovalStore;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
     public ChatController(ToolRegistry registry, BusinessAiHub businessAiHub, McpProvisioningPlanner mcpProvisioningPlanner,
@@ -95,7 +99,9 @@ public class ChatController {
                           AgentHarness agentHarness,
                           AgentFlowSpecParser agentFlowSpecParser,
                           AgentRunStore agentRunStore,
-                          ArtifactStore artifactStore) {
+                          ArtifactStore artifactStore,
+                          SpringAiChatClientDemoService springAiChatClientDemoService,
+                          DemoApprovalStore demoApprovalStore) {
         this.registry = registry;
         this.businessAiHub = businessAiHub;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
@@ -111,6 +117,8 @@ public class ChatController {
         this.agentFlowSpecParser = agentFlowSpecParser;
         this.agentRunStore = agentRunStore;
         this.artifactStore = artifactStore;
+        this.springAiChatClientDemoService = springAiChatClientDemoService;
+        this.demoApprovalStore = demoApprovalStore;
         seedEnterpriseDemoData();
     }
 
@@ -425,6 +433,36 @@ public class ChatController {
         } finally {
             metricsCollector.activeConversations().decrementAndGet();
         }
+    }
+
+    @PostMapping("/api/spring-ai/chat")
+    @ResponseBody
+    public Map<String, Object> springAiChat(@RequestBody Map<String, String> body) {
+        return springAiChatClientDemoService.chat(
+                body.getOrDefault("sessionId", "spring-ai-demo-session"),
+                body.getOrDefault("message", "Create an order for customer 1001"));
+    }
+
+    @GetMapping("/api/approvals")
+    @ResponseBody
+    public List<Map<String, Object>> approvals() {
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        for (DemoApprovalStore.PendingApproval approval : demoApprovalStore.list()) {
+            result.add(demoApprovalStore.toDto(approval));
+        }
+        return result;
+    }
+
+    @PostMapping("/api/approvals/{approvalId}/approve")
+    @ResponseBody
+    public Map<String, Object> approve(@PathVariable String approvalId) {
+        return springAiChatClientDemoService.approve(approvalId);
+    }
+
+    @PostMapping("/api/approvals/{approvalId}/reject")
+    @ResponseBody
+    public Map<String, Object> reject(@PathVariable String approvalId) {
+        return springAiChatClientDemoService.reject(approvalId);
     }
 
     @GetMapping("/api/chat/stream")

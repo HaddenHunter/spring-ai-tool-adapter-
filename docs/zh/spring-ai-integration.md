@@ -87,6 +87,24 @@ public RefundResult refundOrder(Long orderId, BigDecimal amount) {
 }
 ```
 
+## Demo 审批闭环
+
+`adapter-demo` 提供了一个可运行的 ChatClient 风格 demo，并接入真实的 `ToolCallbackProvider` 桥接层。为了不用配置 LLM Key，demo 里的规划器是确定性的；但工具执行仍然会经过 Spring AI `ToolCallback`，再进入本项目治理后的 `ToolExecutor`。
+
+- `POST /api/spring-ai/chat`：根据自然语言规划工具，低风险工具直接执行。
+- `GET /api/approvals`：查看待审批的高风险调用。
+- `POST /api/approvals/{approvalId}/approve`：批准并执行已暂存的工具调用。
+- `POST /api/approvals/{approvalId}/reject`：拒绝已暂存的工具调用。
+- `/chat?lang=zh&springai=approval-auto`：打开中文 UI 并自动停在审批节点。
+
+![Spring AI approval demo](../spring-ai-approval-demo-zh.png)
+
+高风险请求示例：
+
+```json
+{"message":"Create an order for customer 1001 with amount 199.9"}
+```
+
 ## 上下文映射
 
 Spring AI 调用工具时可以传入 `ToolContext`。桥接模块会读取以下 key 并转换为本项目的 `ExecutionContext`：
