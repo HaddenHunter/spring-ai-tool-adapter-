@@ -23,11 +23,13 @@ class AgentHarnessTest {
     @Test
     void runsToolFlowWithCheckpointsAndArtifacts() {
         AgentHarness harness = harness(new PassReviewGate(), new NoopAgentRepairLoop());
-        AgentFlowDefinition flow = new AgentFlowDefinition("flow-1", "Tool flow", Collections.singletonList(
-                new AgentPhase("phase-1", "Execute", Collections.singletonList(
-                        new AgentStep("step-1", "Hello", AgentStepType.TOOL, "hello", "{\"name\":\"Ada\"}", 0)
-                ))
-        ));
+        AgentFlowDefinition flow = new JacksonAgentFlowSpecParser().parseJson("{"
+                + "\"id\":\"flow-1\","
+                + "\"name\":\"Tool flow\","
+                + "\"phases\":[{\"id\":\"phase-1\",\"name\":\"Execute\",\"steps\":["
+                + "{\"id\":\"step-1\",\"name\":\"Hello\",\"type\":\"tool\",\"toolName\":\"hello\","
+                + "\"arguments\":{\"name\":\"Ada\"}}"
+                + "]}]}");
 
         AgentRunState state = harness.start(flow, context());
 

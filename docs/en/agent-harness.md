@@ -15,21 +15,67 @@
 - `ReviewGate`: review boundary.
 - `AgentRepairLoop`: repair extension point.
 - `HumanAgentStepExecutor`: human node that enters `WAITING`.
+- `AgentFlowSpecParser`: parses JSON / YAML declarative Flow Specs into `AgentFlowDefinition`.
 
 ## Minimal Usage
 
 ```java
-AgentFlowDefinition flow = new AgentFlowDefinition("refund-flow", "Refund Flow", Arrays.asList(
-        new AgentPhase("collect", "Collect", Arrays.asList(
-                new AgentStep("query-order", "Query Order", AgentStepType.TOOL,
-                        "query_order", "{\"orderId\":1001}", 0),
-                new AgentStep("review", "Review", AgentStepType.REVIEW,
-                        null, "{}", 1)
-        ))
-));
+AgentFlowDefinition flow = agentFlowSpecParser.parseYaml(yaml);
 
 AgentRunState state = agentHarness.start(flow, executionContext);
 ```
+
+## YAML Flow Spec
+
+```yaml
+id: refund-flow
+name: Refund Flow
+phases:
+  - id: collect
+    name: Collect
+    steps:
+      - id: query-order
+        name: Query Order
+        type: tool
+        toolName: query_order
+        arguments:
+          orderId: 1001
+      - id: review
+        name: Review
+        type: review
+        maxRepairAttempts: 1
+      - id: approval
+        name: Approval
+        type: human
+```
+
+## JSON Flow Spec
+
+```json
+{
+  "id": "refund-flow",
+  "name": "Refund Flow",
+  "phases": [
+    {
+      "id": "collect",
+      "name": "Collect",
+      "steps": [
+        {
+          "id": "query-order",
+          "name": "Query Order",
+          "type": "tool",
+          "toolName": "query_order",
+          "arguments": {
+            "orderId": 1001
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`arguments` can be an object; the parser converts it to the JSON string required by tool execution. Use `argumentsJson` when the value is already serialized.
 
 ## Boundary
 
@@ -40,7 +86,6 @@ AgentRunState state = agentHarness.start(flow, executionContext);
 
 ## Next Steps
 
-- YAML / JSON Flow Spec parsing.
 - ArtifactStore persistence SPI.
 - JDBC RunStore.
 - Demo UI for Phase, Step, Artifact, and Checkpoint.

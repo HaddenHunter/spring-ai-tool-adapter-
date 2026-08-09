@@ -15,21 +15,67 @@
 - `ReviewGate`：审查门。
 - `AgentRepairLoop`：修复循环扩展点。
 - `HumanAgentStepExecutor`：人工节点，进入 `WAITING`。
+- `AgentFlowSpecParser`：把 JSON / YAML 声明式 Flow Spec 解析成 `AgentFlowDefinition`。
 
 ## 最小使用方式
 
 ```java
-AgentFlowDefinition flow = new AgentFlowDefinition("refund-flow", "Refund Flow", Arrays.asList(
-        new AgentPhase("collect", "Collect", Arrays.asList(
-                new AgentStep("query-order", "Query Order", AgentStepType.TOOL,
-                        "query_order", "{\"orderId\":1001}", 0),
-                new AgentStep("review", "Review", AgentStepType.REVIEW,
-                        null, "{}", 1)
-        ))
-));
+AgentFlowDefinition flow = agentFlowSpecParser.parseYaml(yaml);
 
 AgentRunState state = agentHarness.start(flow, executionContext);
 ```
+
+## YAML Flow Spec
+
+```yaml
+id: refund-flow
+name: Refund Flow
+phases:
+  - id: collect
+    name: Collect
+    steps:
+      - id: query-order
+        name: Query Order
+        type: tool
+        toolName: query_order
+        arguments:
+          orderId: 1001
+      - id: review
+        name: Review
+        type: review
+        maxRepairAttempts: 1
+      - id: approval
+        name: Approval
+        type: human
+```
+
+## JSON Flow Spec
+
+```json
+{
+  "id": "refund-flow",
+  "name": "Refund Flow",
+  "phases": [
+    {
+      "id": "collect",
+      "name": "Collect",
+      "steps": [
+        {
+          "id": "query-order",
+          "name": "Query Order",
+          "type": "tool",
+          "toolName": "query_order",
+          "arguments": {
+            "orderId": 1001
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`arguments` 可以写成对象，解析器会转成工具执行需要的 JSON 字符串；也可以直接使用 `argumentsJson`。
 
 ## 设计边界
 
@@ -40,7 +86,6 @@ AgentRunState state = agentHarness.start(flow, executionContext);
 
 ## 下一步
 
-- YAML / JSON Flow Spec 解析。
 - ArtifactStore 持久化 SPI。
 - RunStore JDBC 实现。
 - Demo UI 展示 Phase、Step、Artifact、Checkpoint。

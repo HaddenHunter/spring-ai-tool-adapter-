@@ -32,6 +32,12 @@ public class AgentHarnessAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public AgentFlowSpecParser agentFlowSpecParser() {
+        return new JacksonAgentFlowSpecParser();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public ReviewAgentStepExecutor reviewAgentStepExecutor(ReviewGate reviewGate) {
         return new ReviewAgentStepExecutor(reviewGate);
     }
