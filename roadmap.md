@@ -15,13 +15,13 @@ Status: complete for the 0.x baseline. The focus is making Spring Bean methods r
 
 ## v1.x - Business AI Hub
 
-Goal: turn tools into governed business capabilities.
+Status: baseline implemented. The goal is to turn tools into governed business capabilities with session-aware context, grouped visibility, approval boundaries, and replay.
 
-- Multi-turn conversation context with replayable history.
-- Tool grouping by domain, role, and tenant.
-- Permission policies for business roles and data scopes.
-- Human approval gates for sensitive operations.
-- Conversation and tool-call replay for support, audit, and debugging.
+- Multi-turn conversation context with replayable turns. Baseline done.
+- Tool grouping by domain, role, and tenant. Baseline done through `ToolGroup`, metadata, and visibility filters.
+- Permission policies for business roles and data scopes. Baseline done through `PermissionChecker`; enterprise policy engines remain extension points.
+- Human approval gates for sensitive operations. Baseline done through `ToolApprovalManager` and `HumanInTheLoop`.
+- Conversation and tool-call replay for support, audit, and debugging. Baseline done through `ConversationReplayStore` and context snapshots.
 
 ## v2.x - Tasks and Agents
 

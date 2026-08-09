@@ -3,8 +3,10 @@ package com.c8software.spring.ai.demo.controller;
 import com.c8software.spring.ai.core.definition.ToolDefinition;
 import com.c8software.spring.ai.core.definition.ToolParameter;
 import com.c8software.spring.ai.core.execution.ExecutionContext;
-import com.c8software.spring.ai.core.execution.ToolExecutor;
-import com.c8software.spring.ai.core.execution.ToolResult;
+import com.c8software.spring.ai.core.hub.BusinessAiHub;
+import com.c8software.spring.ai.core.hub.BusinessAiHubRequest;
+import com.c8software.spring.ai.core.hub.BusinessAiHubResponse;
+import com.c8software.spring.ai.core.hub.ConversationReplayStore;
 import com.c8software.spring.ai.core.mcp.McpProvisionPlan;
 import com.c8software.spring.ai.core.mcp.McpProvisioningPlanner;
 import com.c8software.spring.ai.core.mcp.McpSemanticRequest;
@@ -14,6 +16,7 @@ import com.c8software.spring.ai.core.visibility.ToolVisibilityFilter;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -33,7 +36,7 @@ public class ChatController {
 
     private final ToolRegistry registry;
 
-    private final ToolExecutor executor;
+    private final BusinessAiHub businessAiHub;
 
     private final McpProvisioningPlanner mcpProvisioningPlanner;
 
@@ -41,15 +44,19 @@ public class ChatController {
 
     private final MetricsCollector metricsCollector;
 
+    private final ConversationReplayStore replayStore;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
-    public ChatController(ToolRegistry registry, ToolExecutor executor, McpProvisioningPlanner mcpProvisioningPlanner,
-                          ToolVisibilityFilter visibilityFilter, MetricsCollector metricsCollector) {
+    public ChatController(ToolRegistry registry, BusinessAiHub businessAiHub, McpProvisioningPlanner mcpProvisioningPlanner,
+                          ToolVisibilityFilter visibilityFilter, MetricsCollector metricsCollector,
+                          ConversationReplayStore replayStore) {
         this.registry = registry;
-        this.executor = executor;
+        this.businessAiHub = businessAiHub;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
         this.visibilityFilter = visibilityFilter;
         this.metricsCollector = metricsCollector;
+        this.replayStore = replayStore;
     }
 
     @GetMapping({"/", "/chat"})
@@ -138,6 +145,32 @@ public class ChatController {
         return result;
     }
 
+    @GetMapping("/api/v1/status")
+    @ResponseBody
+    public Map<String, Object> v1Status() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("versionLine", "v1.x");
+        result.put("status", "BASELINE");
+        result.put("capabilities", Arrays.asList(
+                "business ai hub",
+                "multi-turn session binding",
+                "structured task context",
+                "tool group visibility",
+                "permission-aware execution",
+                "human approval boundary",
+                "conversation replay store",
+                "context snapshots for replay"
+        ));
+        result.put("replayEndpoint", "/api/replay/{sessionId}");
+        return result;
+    }
+
+    @GetMapping("/api/replay/{sessionId}")
+    @ResponseBody
+    public List<?> replay(@PathVariable String sessionId) {
+        return replayStore.list("demo-tenant", sessionId, 100);
+    }
+
     @PostMapping("/api/mcp/semantic-plan")
     @ResponseBody
     public McpProvisionPlan semanticMcpPlan(@RequestBody Map<String, String> body) {
@@ -165,17 +198,29 @@ public class ChatController {
                 Instant.now()
         );
         try {
-            ToolResult toolResult = executor.execute(toolName, arguments, context);
+            BusinessAiHubResponse response = businessAiHub.handle(new BusinessAiHubRequest(
+                    body.getOrDefault("sessionId", "demo-session"),
+                    body.getOrDefault("taskId", UUID.randomUUID().toString()),
+                    body.getOrDefault("taskType", toolName),
+                    body.getOrDefault("message", "Run tool"),
+                    toolName,
+                    arguments,
+                    context
+            ));
             metricsCollector.recordToolCall();
             metricsCollector.recordTokenUsage(estimateTokens(arguments));
-            if (!toolResult.isSuccess()) {
+            if (!response.getToolResult().isSuccess()) {
                 metricsCollector.recordToolError();
             }
 
             Map<String, Object> result = new LinkedHashMap<>();
-            result.put("message", toolResult.isSuccess() ? "Tool executed" : "Tool failed");
+            result.put("message", response.getToolResult().isSuccess() ? "Tool executed" : "Tool failed");
             result.put("toolName", toolName);
-            result.put("result", toolResult);
+            result.put("sessionId", response.getSessionId());
+            result.put("taskId", response.getTaskId());
+            result.put("taskStatus", response.getTaskStatus());
+            result.put("contextSnapshot", response.getContextSnapshot());
+            result.put("result", response.getToolResult());
             return result;
         } catch (RuntimeException ex) {
             metricsCollector.recordToolCall();

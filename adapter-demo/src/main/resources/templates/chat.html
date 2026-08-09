@@ -121,6 +121,7 @@
       <div class="stat"><span>Current User</span><b id="currentUser">-</b></div>
       <div class="stat"><span>Tenant</span><b id="tenantId">-</b></div>
       <div class="stat"><span>v0 Status</span><b id="v0Status">-</b></div>
+      <div class="stat"><span>v1 Status</span><b id="v1Status">-</b></div>
       <div class="stat"><span>Token Usage</span><b id="tokenText">0 / 0</b></div>
       <div class="token-bar"><div id="tokenFill" class="token-fill"></div></div>
       <h3 style="margin-top:16px">Permission Scopes</h3>
@@ -137,6 +138,7 @@
         <button id="tabPrompt" class="active" onclick="showDebug('prompt')">Prompt</button>
         <button id="tabSchema" onclick="showDebug('schema')">Tool Schema</button>
         <button id="tabAudit" onclick="showDebug('audit')">Audit Logs</button>
+        <button id="tabReplay" onclick="showDebug('replay')">Replay</button>
       </div>
     </div>
     <div class="debug-body">
@@ -147,12 +149,12 @@
 
 <script>
 let tools = [];
-let debugCache = {prompt:'', schema:'', audit:''};
+let debugCache = {prompt:'', schema:'', audit:'', replay:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
 
 async function refreshAll(){
-  await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadDebug()]);
+  await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadV1Status(), loadDebug()]);
   showDebug('prompt');
 }
 
@@ -183,19 +185,26 @@ async function loadV0Status(){
   document.getElementById('v0Status').textContent = data.status;
 }
 
+async function loadV1Status(){
+  const data = await fetch('/api/v1/status').then(r=>r.json());
+  document.getElementById('v1Status').textContent = data.status;
+}
+
 async function loadDebug(){
-  const [prompt, schema, audit] = await Promise.all([
+  const [prompt, schema, audit, replay] = await Promise.all([
     fetch('/api/debug/prompt').then(r=>r.json()),
     fetch('/api/debug/schema').then(r=>r.json()),
-    fetch('/api/audit/logs').then(r=>r.json())
+    fetch('/api/audit/logs').then(r=>r.json()),
+    fetch('/api/replay/demo-session').then(r=>r.json())
   ]);
   debugCache.prompt = prompt.prompt;
   debugCache.schema = pretty(schema);
   debugCache.audit = pretty(audit);
+  debugCache.replay = pretty(replay);
 }
 
 function showDebug(kind){
-  ['Prompt','Schema','Audit'].forEach(name => document.getElementById(`tab${name}`).classList.remove('active'));
+  ['Prompt','Schema','Audit','Replay'].forEach(name => document.getElementById(`tab${name}`).classList.remove('active'));
   document.getElementById(`tab${kind.charAt(0).toUpperCase()+kind.slice(1)}`).classList.add('active');
   document.getElementById('debugOutput').textContent = debugCache[kind] || '';
 }
@@ -257,7 +266,7 @@ async function send(){
   const res = await fetch('/api/chat',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({toolName:toolName, arguments:argumentsJson})
+    body:JSON.stringify({sessionId:'demo-session', toolName:toolName, arguments:argumentsJson, message:document.getElementById('userInput').value})
   }).then(r=>r.json());
   addToolCard(toolName, res);
   document.getElementById('lastCost').textContent = `${res.result.costMs} ms`;

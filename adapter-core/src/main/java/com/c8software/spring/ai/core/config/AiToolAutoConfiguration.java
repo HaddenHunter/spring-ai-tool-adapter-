@@ -16,6 +16,10 @@ import com.c8software.spring.ai.core.execution.DefaultToolExecutor;
 import com.c8software.spring.ai.core.execution.TimeoutToolInvocationExecutor;
 import com.c8software.spring.ai.core.execution.ToolExecutor;
 import com.c8software.spring.ai.core.execution.ToolInvocationExecutor;
+import com.c8software.spring.ai.core.hub.BusinessAiHub;
+import com.c8software.spring.ai.core.hub.ConversationReplayStore;
+import com.c8software.spring.ai.core.hub.DefaultBusinessAiHub;
+import com.c8software.spring.ai.core.hub.InMemoryConversationReplayStore;
 import com.c8software.spring.ai.core.idempotency.DefaultIdempotencyKeyResolver;
 import com.c8software.spring.ai.core.idempotency.IdempotencyKeyResolver;
 import com.c8software.spring.ai.core.idempotency.IdempotencyStore;
@@ -131,6 +135,12 @@ public class AiToolAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ConversationReplayStore conversationReplayStore() {
+        return new InMemoryConversationReplayStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public HumanInTheLoop humanInTheLoop() {
         return new ManualApprovalRequiredHumanInTheLoop();
     }
@@ -193,5 +203,13 @@ public class AiToolAutoConfiguration {
                                      ToolInvocationExecutor invocationExecutor, ResultMasker resultMasker) {
         return new DefaultToolExecutor(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper,
                 properties, approvalManager, idempotencyStore, idempotencyKeyResolver, invocationExecutor, resultMasker);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public BusinessAiHub businessAiHub(ConversationSessionStore sessionStore,
+                                       ConversationReplayStore replayStore,
+                                       ToolExecutor toolExecutor) {
+        return new DefaultBusinessAiHub(sessionStore, replayStore, toolExecutor);
     }
 }
