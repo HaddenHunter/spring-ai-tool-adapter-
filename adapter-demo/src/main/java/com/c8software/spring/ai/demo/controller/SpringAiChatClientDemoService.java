@@ -58,7 +58,10 @@ public class SpringAiChatClientDemoService {
             return message("ERROR", "Approval request not found.", null, null);
         }
         approvals.markApproved(approvalId);
-        return executePlan(new PlannedToolCall(approval.getToolName(), approval.getArgumentsJson()), "APPROVED_AND_EXECUTED");
+        Map<String, Object> response = executePlan(new PlannedToolCall(approval.getToolName(), approval.getArgumentsJson(), approvalId),
+                "APPROVED_AND_EXECUTED");
+        response.put("approval", approvals.toDto(approval));
+        return response;
     }
 
     public Map<String, Object> reject(String approvalId) {
@@ -77,7 +80,7 @@ public class SpringAiChatClientDemoService {
         ToolCallback callback = callback(plan.getToolName());
         String toolResultJson = callback == null
                 ? "{\"success\":false,\"errorMessage\":\"ToolCallback not found\"}"
-                : callback.call(plan.getArgumentsJson(), toolContext());
+                : callback.call(plan.getArgumentsJson(), toolContext(plan.getApprovalId()));
         return message(status, "Spring AI ToolCallback executed through the governed adapter.", plan, toolResultJson);
     }
 
@@ -90,12 +93,15 @@ public class SpringAiChatClientDemoService {
         return null;
     }
 
-    private ToolContext toolContext() {
+    private ToolContext toolContext(String approvalId) {
         Map<String, Object> values = new LinkedHashMap<String, Object>();
         values.put("currentUser", "demo-user");
         values.put("tenantId", "demo-tenant");
         values.put("traceId", UUID.randomUUID().toString());
         values.put("permissions", new LinkedHashSet<String>(Arrays.asList("demo:tool:invoke", "finance:read")));
+        if (approvalId != null && !approvalId.trim().isEmpty()) {
+            values.put("approvalId", approvalId);
+        }
         return new ToolContext(values);
     }
 
@@ -172,13 +178,20 @@ public class SpringAiChatClientDemoService {
     private static final class PlannedToolCall {
         private final String toolName;
         private final String argumentsJson;
+        private final String approvalId;
 
         private PlannedToolCall(String toolName, String argumentsJson) {
+            this(toolName, argumentsJson, null);
+        }
+
+        private PlannedToolCall(String toolName, String argumentsJson, String approvalId) {
             this.toolName = toolName;
             this.argumentsJson = argumentsJson;
+            this.approvalId = approvalId;
         }
 
         public String getToolName() { return toolName; }
         public String getArgumentsJson() { return argumentsJson; }
+        public String getApprovalId() { return approvalId; }
     }
 }

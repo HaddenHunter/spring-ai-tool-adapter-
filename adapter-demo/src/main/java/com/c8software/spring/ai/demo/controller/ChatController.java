@@ -444,6 +444,32 @@ public class ChatController {
                 body.getOrDefault("message", "Create an order for customer 1001"));
     }
 
+    @PostMapping("/api/tool-approval/request")
+    @ResponseBody
+    public Map<String, Object> requestToolApproval(@RequestBody Map<String, String> body) {
+        String toolName = body.getOrDefault("toolName", "");
+        ToolDefinition definition = registry.get(toolName);
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (definition == null) {
+            result.put("status", "ERROR");
+            result.put("message", "Tool not found: " + toolName);
+            return result;
+        }
+        DemoApprovalStore.PendingApproval approval = demoApprovalStore.create(
+                body.getOrDefault("sessionId", "demo-session"),
+                body.getOrDefault("message", "Run governed tool"),
+                toolName,
+                body.getOrDefault("arguments", "{}"),
+                definition.getMetadata().getRiskLevel(),
+                "High-risk tool call is waiting for human approval.");
+        result.put("status", "PENDING_APPROVAL");
+        result.put("message", "High-risk tool call is waiting for approval.");
+        result.put("approval", demoApprovalStore.toDto(approval));
+        result.put("plannedToolName", toolName);
+        result.put("plannedArguments", body.getOrDefault("arguments", "{}"));
+        return result;
+    }
+
     @GetMapping("/api/approvals")
     @ResponseBody
     public List<Map<String, Object>> approvals() {

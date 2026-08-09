@@ -23,18 +23,23 @@ public class DemoHumanInTheLoopConfiguration {
         }
 
         public ApprovalResponse requestApproval(ApprovalRequest request) {
-            String toolName = toolName(request == null ? "" : request.getTitle());
-            if (!toolName.isEmpty() && approvals.consumeToolApproval(toolName)) {
+            String approvalId = approvalId(request == null ? "" : request.getDetail());
+            if (!approvalId.isEmpty() && approvals.consumeToolApproval(approvalId)) {
                 return new ApprovalResponse(true, "APPROVED", "approved by demo governance panel");
             }
             return new ApprovalResponse(false, "PENDING_APPROVAL",
                     "waiting for approval in the demo governance panel");
         }
 
-        private String toolName(String title) {
-            String prefix = "Approve AI tool call: ";
-            if (title != null && title.startsWith(prefix)) {
-                return title.substring(prefix.length()).trim();
+        private String approvalId(String detail) {
+            String marker = "approvalId=";
+            if (detail != null) {
+                int start = detail.indexOf(marker);
+                if (start >= 0) {
+                    int valueStart = start + marker.length();
+                    int end = detail.indexOf(',', valueStart);
+                    return end < 0 ? detail.substring(valueStart).trim() : detail.substring(valueStart, end).trim();
+                }
             }
             return "";
         }

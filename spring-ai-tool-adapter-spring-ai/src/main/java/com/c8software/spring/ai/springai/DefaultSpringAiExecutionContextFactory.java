@@ -25,7 +25,8 @@ public class DefaultSpringAiExecutionContextFactory implements SpringAiExecution
                 stringValue(values.get(TENANT_ID), "default"),
                 stringValue(values.get(TRACE_ID), UUID.randomUUID().toString()),
                 permissions(values.get(PERMISSIONS)),
-                Instant.now());
+                Instant.now(),
+                values);
     }
 
     private String stringValue(Object value, String fallback) {

@@ -25,6 +25,7 @@ public class DefaultToolApprovalManager implements ToolApprovalManager {
         request.setId(UUID.randomUUID().toString());
         request.setTitle("Approve AI tool call: " + definition.getName());
         request.setDetail("risk=" + definition.getMetadata().getRiskLevel()
+                + ", approvalId=" + (context == null ? "" : String.valueOf(context.getAttribute("approvalId")))
                 + ", user=" + (context == null ? "" : context.getCurrentUser())
                 + ", tenant=" + (context == null ? "" : context.getTenantId())
                 + ", input=" + maskedInput);

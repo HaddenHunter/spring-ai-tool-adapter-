@@ -17,7 +17,7 @@ public class DemoApprovalStore {
 
     private final ConcurrentMap<String, PendingApproval> pending = new ConcurrentHashMap<String, PendingApproval>();
 
-    private final ConcurrentMap<String, Boolean> approvedTools = new ConcurrentHashMap<String, Boolean>();
+    private final ConcurrentMap<String, Boolean> approvedRequests = new ConcurrentHashMap<String, Boolean>();
 
     public PendingApproval create(String sessionId, String utterance, String toolName, String argumentsJson,
                                   String riskLevel, String reason) {
@@ -41,7 +41,7 @@ public class DemoApprovalStore {
         PendingApproval approval = pending.get(approvalId);
         if (approval != null) {
             approval.setStatus("APPROVED");
-            approvedTools.put(approval.getToolName(), Boolean.TRUE);
+            approvedRequests.put(approvalId, Boolean.TRUE);
         }
     }
 
@@ -52,8 +52,8 @@ public class DemoApprovalStore {
         }
     }
 
-    public boolean consumeToolApproval(String toolName) {
-        return approvedTools.remove(toolName) != null;
+    public boolean consumeToolApproval(String approvalId) {
+        return approvedRequests.remove(approvalId) != null;
     }
 
     public Map<String, Object> toDto(PendingApproval approval) {

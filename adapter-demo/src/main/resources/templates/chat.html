@@ -852,6 +852,29 @@ function showApproval(approval){
   }
 }
 
+function selectedToolDefinition(toolName){
+  return tools.find(t => t.name === toolName);
+}
+
+function requiresHumanApproval(tool){
+  return tool && (tool.riskLevel === 'HIGH' || tool.riskLevel === 'CRITICAL');
+}
+
+async function requestToolApproval(toolName, argumentsJson, message){
+  const res = await fetch('/api/tool-approval/request',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({sessionId:'demo-session', toolName:toolName, arguments:argumentsJson, message:message})
+  }).then(r=>r.json());
+  addToolCard(toolName, res);
+  document.getElementById('selectedTool').textContent = res.plannedToolName || toolName;
+  document.getElementById('lastStatus').textContent = statusText(res.status || 'PENDING_APPROVAL');
+  showApproval(res.approval);
+  setStatus('running');
+  await loadDebug();
+  showDebug('replay');
+}
+
 async function springAiChat(){
   const visibleMessage = document.getElementById('userInput').value;
   const plannerMessage = locale === 'zh' && visibleMessage.indexOf('订单') >= 0
@@ -899,12 +922,18 @@ async function rejectPending(){
 async function send(){
   const toolName = document.getElementById('tool').value;
   const argumentsJson = document.getElementById('args').value;
-  addMessage(document.getElementById('userInput').value, 'user');
+  const userMessage = document.getElementById('userInput').value;
+  const selected = selectedToolDefinition(toolName);
+  addMessage(userMessage, 'user');
   setStatus('running');
+  if (requiresHumanApproval(selected)) {
+    await requestToolApproval(toolName, argumentsJson, userMessage);
+    return;
+  }
   const res = await fetch('/api/chat',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sessionId:'demo-session', toolName:toolName, arguments:argumentsJson, message:document.getElementById('userInput').value})
+    body:JSON.stringify({sessionId:'demo-session', toolName:toolName, arguments:argumentsJson, message:userMessage})
   }).then(r=>r.json());
   addToolCard(toolName, res);
   document.getElementById('lastCost').textContent = `${res.result.costMs} ms`;
@@ -918,6 +947,15 @@ async function init(){
   applyLocale();
   await refreshAll();
   if (pageParams.get('audit') === 'demo-auto') {
+    await send();
+    return;
+  }
+  if (pageParams.get('approval') === 'demo-auto') {
+    const toolSelect = document.getElementById('tool');
+    toolSelect.value = 'mock_create_order';
+    syncArgumentTemplate();
+    document.getElementById('args').value = pretty({userId:'1001', amount:199.9});
+    document.getElementById('userInput').value = 'Create a governed order for customer 1001 with amount 199.9';
     await send();
     return;
   }
