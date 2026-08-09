@@ -5,39 +5,37 @@
 ```mermaid
 flowchart TB
   LLM["LLM / Agent"]
-  Adapter["Tool Adapter (this open-source project)<br/>1. Annotations and metadata<br/>2. Tool registration and discovery<br/>3. Schema generation<br/>4. Tool execution engine<br/>5. Permission control<br/>6. Parameter masking<br/>7. Audit logging<br/>8. Exception handling and fallback<br/>9. Multi-model adaptation<br/>10. Configuration and extension points"]
-  Beans["Spring Beans (business systems)<br/>OrderService / SmsService / FinanceService / ..."]
+  Adapter["Tool Adapter<br/>Annotations, registry, schema, execution, governance, audit, context, MCP planning"]
+  Beans["Spring Beans<br/>OrderService / SmsService / FinanceService / CRM / ..."]
 
   LLM -->|"Tool Calling"| Adapter
   Adapter --> Beans
 ```
 
-## 1. Annotations And Metadata
+The project exposes Spring business capabilities to LLMs through a governed adapter layer. The adapter owns framework contracts and default SPIs. Business services remain in the adopter's application.
+
+## 1. Annotation And Governance Metadata
 
 MVP:
 
 - `@AiTool` marks a method as AI-callable.
-- `name` is globally unique.
-- `description` describes business intent.
-- `paramDescriptions` documents parameters.
-- `enabled` supports static and externalized switches.
-- `requiresPermission` declares the permission scope.
-- `auditLevel` uses `AuditLevel.NONE`, `AuditLevel.BASIC`, or `AuditLevel.FULL`.
+- `@AiToolRequiresPermission` declares required permission.
+- `@AiToolRiskLevel` declares risk level.
+- `@AiToolAudit` declares audit level.
+- `@AiToolParam` describes parameter semantics.
+- `@AiToolSensitive` marks sensitive parameters.
+- `@AiToolIdempotent` declares an idempotency key.
+- `@AiToolRollback` declares a compensating method.
+- `@AiToolVisibility` controls tool visibility.
+- `@AiToolVersion` declares contract version.
+- `@AiToolContextKey` binds parameters or results into structured conversation context.
 
-Example:
+Design rules:
 
-```java
-@AiTool(
-    name = "query_user_balance",
-    description = "Query user account balance",
-    paramDescriptions = {"userId=user id", "currency=currency, default CNY"},
-    requiresPermission = "finance:read",
-    auditLevel = AuditLevel.FULL
-)
-public BigDecimal getBalance(Long userId, String currency) {
-    return BigDecimal.ZERO;
-}
-```
+- Governance annotations are declarative.
+- Annotation processors do not contain business policy logic.
+- Parsed metadata is stored in immutable `ToolMetadata` and `ToolParameter`.
+- New governance annotations override legacy fields on `@AiTool`, while legacy fields remain compatible.
 
 ## 2. Tool Registration And Discovery
 
@@ -45,13 +43,22 @@ MVP:
 
 - Scan Spring Beans at startup with `BeanPostProcessor`.
 - Discover `@AiTool` methods.
-- Cache immutable `ToolMetadata` and method handles.
+- Parse governance annotations through `ToolGovernanceAnnotationProcessor`.
+- Cache immutable metadata and `MethodHandle`.
 - Validate globally unique tool names.
 - Support externalized enable/disable switches through `ai.tool.tools.<toolName>`.
+
+Important classes:
+
+- `AiToolRegistrar`
+- `ToolRegistry`
+- `ReflectionToolDefinition`
+- `DefaultToolGovernanceAnnotationProcessor`
 
 Future:
 
 - Dynamic refresh from Nacos or Apollo.
+- External tool catalogs.
 
 ## 3. Tool Schema Generation
 
@@ -63,6 +70,20 @@ MVP:
 - Enum export as string lists.
 - Validation export for `@NotNull`, `@Min`, and `@Max` when present.
 
+SPI:
+
+```java
+public interface ToolSchemaConverter {
+    Map<String, Object> convert(ToolDefinition definition);
+    String provider();
+}
+```
+
+Future:
+
+- More complex POJO schema generation.
+- Provider-specific governance extensions.
+
 ## 4. Tool Execution Engine
 
 MVP:
@@ -72,18 +93,26 @@ MVP:
 - Invoke target methods through cached `MethodHandle`.
 - Wrap failures with `AiToolExecutionException`.
 - Write audit records after execution.
+- Include context snapshot hashes in audit records when context is bound.
 
 Execution flow:
 
 ```text
-LLM JSON -> parameter binding -> permission check -> masking -> business method
-         -> result serialization -> audit -> response to LLM
+LLM JSON
+ -> parameter binding
+ -> permission check
+ -> sensitive masking
+ -> business method invocation
+ -> result wrapping
+ -> audit logging
+ -> response to LLM
 ```
 
 Future:
 
 - `CompletableFuture` async tool support.
 - Explicit timeout runner around slow tools.
+- Durable idempotency store.
 
 ## 5. Permission Control
 
@@ -91,7 +120,7 @@ MVP:
 
 - `PermissionChecker` SPI.
 - Default permission matching through `ExecutionContext.permissions`.
-- `requiresPermission` on `@AiTool`.
+- Required permission comes from `ToolMetadata`.
 
 Future:
 
@@ -104,27 +133,32 @@ Future:
 
 MVP:
 
-- `@Sensitive(type = ...)` on parameters.
-- Built-in mobile, ID card, bank card, name, and custom masking categories.
+- `@AiToolSensitive(type = ...)` and legacy `@Sensitive`.
+- Built-in mobile, ID card, bank card, name, password, operator id, and custom categories.
 - Audit input uses masked values instead of raw sensitive values.
 
 Future:
 
 - Return-value masking before sending data back to LLM.
+- Field-level masking for complex return objects.
 
 ## 7. Audit Logging
 
 Audit fields:
 
-- `trace_id`
-- `tool_name`
-- `caller_user`
-- `tenant_id`
-- `input_hash`
-- `output_hash`
-- `cost_ms`
+- `traceId`
+- `toolName`
+- `callerUser`
+- `tenantId`
+- `inputHash`
+- `outputHash`
+- `costMs`
 - `status`
-- `error_msg`
+- `errorMessage`
+- `eventType`
+- `contextBeforeHash`
+- `contextAfterHash`
+- `timestamp`
 
 MVP storage:
 
@@ -134,6 +168,7 @@ Future storage:
 
 - MySQL / PostgreSQL default storage.
 - Optional Elasticsearch / ClickHouse storage.
+- Audit replay UI.
 
 ## 8. Exception Handling And Fallback
 
@@ -150,13 +185,13 @@ ai:
   tool:
     fallback:
       enabled: true
-      message: "该工具暂时不可用，请稍后重试"
+      message: "This tool is temporarily unavailable. Please try again later."
 ```
 
 Future:
 
-- Idempotent retry strategy.
-- Resilience4j circuit breaker.
+- Retry strategy for idempotent tools.
+- Circuit breaker integration.
 
 ## 9. Multi-model Adaptation
 
@@ -170,14 +205,10 @@ Supported schema converters:
 - Ollama
 - Local OpenAI-compatible models
 
-SPI:
+Design:
 
-```java
-public interface ToolSchemaConverter {
-    Map<String, Object> convert(ToolDefinition definition);
-    String provider();
-}
-```
+- New providers add a new `ToolSchemaConverter`.
+- Core `ToolDefinition` remains provider-neutral.
 
 ## 10. Configuration And Extension Points
 
@@ -189,6 +220,10 @@ Extension points:
 - `PermissionChecker` for internal authorization systems.
 - `SensitiveMasker` for custom masking rules.
 - `ToolSchemaConverter` for model-specific schema formats.
+- `ToolGovernanceAnnotationProcessor` for metadata enrichment.
+- `ContextCompressor` for context compression.
+- `UserChoiceTracker` for choice persistence.
+- `McpCapabilityCatalog` and `McpSemanticMatcher` for semantic MCP planning.
 
 Auto-configuration:
 
@@ -222,9 +257,105 @@ Hard constraints:
 - Tool execution failure must not erase context.
 - Compression must not lose confirmed facts or user intent.
 
-Audit scope:
+## 12. Task Orchestration
 
-- Context snapshots before and after tool execution.
-- User choice confirmation events.
-- Context compression events.
-- Session reset events.
+MVP:
+
+- Lightweight DAG models through `TaskDefinition`, `TaskNode`, and `TaskEdge`.
+- Node types: `TOOL`, `CONDITION`, `HUMAN_APPROVAL`, `SUB_TASK`.
+- `TaskExecutor` can execute ordered tool nodes.
+- `HumanInTheLoop` defines approval integration boundary.
+
+Future:
+
+- Persistent task runtime.
+- Approval waiting and callback handling.
+- Rollback execution.
+- Long-running task monitoring.
+
+## 13. Semantic MCP Provisioning
+
+Purpose:
+
+- Convert natural-language integration needs into an MCP provisioning plan.
+- Keep actual installation and external authorization behind enterprise approval.
+
+MVP:
+
+- `McpCapabilityCatalog` SPI.
+- `McpSemanticMatcher` SPI.
+- `McpProvisioningPlanner`.
+- Default in-memory catalog for CRM, finance, and messaging examples.
+- Permission-aware and approval-gated plan generation.
+
+Statuses:
+
+- `NO_MATCH`
+- `PERMISSION_REQUIRED`
+- `PENDING_APPROVAL`
+- `READY_TO_PROVISION`
+
+Hard constraints:
+
+- Do not directly install external MCP servers.
+- Do not bypass approval for high-risk capabilities.
+- Do not authorize external systems from semantic matching alone.
+
+## 14. Codex Skill For Existing Systems
+
+The repository includes:
+
+```text
+skills/spring-ai-adapt-existing-system
+```
+
+Purpose:
+
+- Help adopters scan existing Spring services and generate framework integration code.
+- Generate governed tool facades instead of exposing raw internal methods.
+- Generate context bindings and semantic MCP provisioning code when needed.
+- Generate tests for registration, metadata, schema, and execution.
+
+Expected output:
+
+- AI tool facade classes.
+- Governance annotations.
+- Context key bindings.
+- MCP capability catalog extensions.
+- Unit tests.
+
+## 15. Demo And Observability
+
+Demo module:
+
+- Mock tools.
+- Chat UI.
+- Tool list endpoint.
+- Schema and prompt debug endpoints.
+- Audit query endpoint.
+- Governance panel data.
+- Semantic MCP plan endpoint.
+
+Observability:
+
+- Audit record query.
+- Micrometer counters.
+- Prometheus endpoint through Spring Boot Actuator configuration.
+
+## 16. Production Readiness Roadmap
+
+Current version:
+
+- Framework contracts and default in-memory implementations.
+- Runnable demo.
+- Unit tests.
+- Codex migration skill.
+
+Next steps:
+
+- Durable audit storage.
+- Enterprise approval workflow.
+- Persistent idempotency store.
+- Advanced context persistence.
+- Real MCP marketplace / tool marketplace.
+- Multi-tenant deployment model.
