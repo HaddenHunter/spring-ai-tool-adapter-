@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.c8software.spring.ai.springai.SpringAiToolAdapterAutoConfiguration

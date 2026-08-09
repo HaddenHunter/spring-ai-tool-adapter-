@@ -36,12 +36,14 @@
     <modules>
         <module>adapter-core</module>
         <module>spring-ai-tool-adapter-starter</module>
+        <module>spring-ai-tool-adapter-spring-ai</module>
         <module>adapter-demo</module>
     </modules>
 
     <properties>
         <java.version>1.8</java.version>
         <spring-boot.version>2.7.18</spring-boot.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

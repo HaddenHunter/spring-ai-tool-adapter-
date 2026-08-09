@@ -58,6 +58,10 @@ mvn -DskipTests deploy
 
 The adapter can turn natural-language integration needs into an MCP provisioning plan. The default implementation matches semantic capability tags and returns risk, permission, and approval status. It does not directly install external MCP servers; enterprise implementations can replace the catalog and matcher through SPI.
 
+## Spring AI Integration
+
+Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring AI `ChatClient` or Spring AI Tool Calling. It exposes governed adapter tools as Spring AI `ToolCallbackProvider` callbacks while keeping permission checks, audit, timeout isolation, masking, Session + Context, and tool metadata inside this adapter.
+
 ## Codex Skill for Existing Systems
 
 This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Codex skill for teams adopting the framework in an existing Spring application. It guides Codex to scan current services, generate governed `@AiTool` facades, bind session context, add semantic MCP provisioning plans, and create tests.
@@ -76,6 +80,8 @@ This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Co
 - [Chinese Feature Reference](docs/zh/feature-reference.md)
 - [English User Guide](docs/en/user-guide.md)
 - [English Feature Reference](docs/en/feature-reference.md)
+- [Chinese Spring AI Integration](docs/zh/spring-ai-integration.md)
+- [English Spring AI Integration](docs/en/spring-ai-integration.md)
 - [Architecture](architecture.md)
 - [Functional Plan](functional-plan.md)
 - [Roadmap](roadmap.md)
