@@ -86,27 +86,27 @@ POST /api/mcp/semantic-plan
 
 ### 5.1 添加依赖
 
-如果你把本项目发布到内部 Maven 仓库，可在业务系统中添加：
+如果你把本项目发布到内部 Maven 仓库，可在业务系统中添加 starter：
 
 ```xml
 <dependency>
     <groupId>com.c8software.spring.ai</groupId>
-    <artifactId>adapter-core</artifactId>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
-如果是源码多模块开发，可以让业务模块依赖 `adapter-core`。
+starter 会自动引入 `adapter-core` 并注册自动配置。若是源码多模块开发，也可以直接依赖 `adapter-core`。
 
 ### 5.2 启用自动配置
 
-默认自动配置类：
+starter 会自动加载默认自动配置类：
 
 ```java
 com.c8software.spring.ai.core.config.AiToolAutoConfiguration
 ```
 
-如果业务系统没有自动扫描到该配置，可以显式导入：
+如果业务系统没有使用 starter，或自动配置没有生效，可以显式导入：
 
 ```java
 @Import(AiToolAutoConfiguration.class)

@@ -29,6 +29,28 @@ LLM / Agent
 11. Semantic MCP provisioning
 12. Codex Skill 自动接入旧系统
 13. P0 企业治理增强：持久化审计、审批、幂等、可见性过滤
+14. Spring Boot Starter 自动装配
+
+## 1.1 Spring Boot Starter
+
+`spring-ai-tool-adapter-starter` 用于让业务系统只添加一个依赖即可启用框架能力。
+
+Starter 内容：
+
+- 依赖 `adapter-core`
+- 提供 Spring Boot 2 的 `META-INF/spring.factories`
+- 提供 Spring Boot 3 的 `AutoConfiguration.imports`
+- 自动加载 `AiToolAutoConfiguration`
+
+使用方依赖：
+
+```xml
+<dependency>
+    <groupId>com.c8software.spring.ai</groupId>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
 
 ## 2. 注解体系
 

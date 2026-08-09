@@ -29,6 +29,28 @@ Core areas:
 11. semantic MCP provisioning
 12. Codex skill for existing systems
 13. P0 enterprise governance: persistent audit, approval, idempotency, and visibility filtering
+14. Spring Boot Starter auto-configuration
+
+## 1.1 Spring Boot Starter
+
+`spring-ai-tool-adapter-starter` lets applications enable the framework with one dependency.
+
+Starter contents:
+
+- depends on `adapter-core`
+- provides Spring Boot 2 `META-INF/spring.factories`
+- provides Spring Boot 3 `AutoConfiguration.imports`
+- auto-loads `AiToolAutoConfiguration`
+
+Consumer dependency:
+
+```xml
+<dependency>
+    <groupId>com.c8software.spring.ai</groupId>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
 
 ## 2. Annotation System
 

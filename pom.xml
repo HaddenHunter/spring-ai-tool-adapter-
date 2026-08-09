@@ -10,6 +10,7 @@
 
     <modules>
         <module>adapter-core</module>
+        <module>spring-ai-tool-adapter-starter</module>
         <module>adapter-demo</module>
     </modules>
 

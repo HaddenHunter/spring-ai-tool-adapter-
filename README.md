@@ -10,6 +10,20 @@ We don't just expose methods to LLMs. We annotate business intent, risk, and tru
 2. Run: `mvn -pl adapter-demo spring-boot:run`
 3. Open: `http://localhost:8080/chat`
 
+## Spring Boot Starter
+
+Use the starter in existing Spring Boot applications:
+
+```xml
+<dependency>
+    <groupId>com.c8software.spring.ai</groupId>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+The starter auto-registers `AiToolAutoConfiguration` for Spring Boot 2 and Spring Boot 3.
+
 ## Example Tools
 
 - `mock_query_user_balance`

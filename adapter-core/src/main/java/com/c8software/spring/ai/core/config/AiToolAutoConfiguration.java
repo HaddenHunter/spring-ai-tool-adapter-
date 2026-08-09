@@ -36,17 +36,17 @@ import com.c8software.spring.ai.core.orchestration.HumanInTheLoop;
 import com.c8software.spring.ai.core.visibility.DefaultToolVisibilityFilter;
 import com.c8software.spring.ai.core.visibility.ToolVisibilityFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 
 /** Default Spring Boot configuration for the adapter core. */
-@Configuration
+@AutoConfiguration
 @EnableConfigurationProperties(AiToolProperties.class)
 public class AiToolAutoConfiguration {
     @Bean
@@ -78,6 +78,12 @@ public class AiToolAutoConfiguration {
     @ConditionalOnMissingBean
     public SensitiveMasker sensitiveMasker() {
         return new DefaultSensitiveMasker();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean

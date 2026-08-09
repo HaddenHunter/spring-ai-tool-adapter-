@@ -7,30 +7,18 @@
         <artifactId>spring-ai-tool-adapter</artifactId>
         <version>0.1.0</version>
     </parent>
-    <artifactId>adapter-demo</artifactId>
-    <name>adapter-demo</name>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
+    <name>spring-ai-tool-adapter-starter</name>
 
     <dependencies>
         <dependency>
             <groupId>com.c8software.spring.ai</groupId>
-            <artifactId>spring-ai-tool-adapter-starter</artifactId>
+            <artifactId>adapter-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -38,13 +26,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

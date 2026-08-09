@@ -84,27 +84,27 @@ POST /api/mcp/semantic-plan
 
 ### 5.1 Add Dependency
 
-If the framework is published to your internal Maven repository:
+If the framework is published to your internal Maven repository, add the starter:
 
 ```xml
 <dependency>
     <groupId>com.c8software.spring.ai</groupId>
-    <artifactId>adapter-core</artifactId>
+    <artifactId>spring-ai-tool-adapter-starter</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
-For source-based development, add a module dependency on `adapter-core`.
+The starter pulls in `adapter-core` and registers auto-configuration. For source-based development, you can also depend on `adapter-core` directly.
 
 ### 5.2 Enable Auto Configuration
 
-Default auto-configuration:
+The starter loads the default auto-configuration:
 
 ```java
 com.c8software.spring.ai.core.config.AiToolAutoConfiguration
 ```
 
-If it is not auto-detected, import it explicitly:
+If the application does not use the starter, or auto-configuration is not active, import it explicitly:
 
 ```java
 @Import(AiToolAutoConfiguration.class)
