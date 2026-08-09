@@ -35,6 +35,7 @@ Status: Java-native Agent Harness baseline implemented. The goal is to coordinat
 - Declarative YAML/JSON Flow Spec parsing. Baseline done through `AgentFlowSpecParser`.
 - Artifact persistence and JDBC run store. Baseline done through `ArtifactStore`, `JdbcArtifactStore`, and `JdbcAgentRunStore`.
 - Demo UI run visualization. Baseline done with Flow, Phase, Step, Artifact, Checkpoint, and Resume controls.
+- P1 demo upgrades: Flow Spec editor, live parse preview, run/resume/recover controls, multi-provider schema comparison, and persisted run recovery evidence. Done.
 - Future: external AgentWeaver CLI executor and richer graph-based run inspection.
 
 ## v3.x - Enterprise AI Operating System
@@ -45,3 +46,4 @@ Status: baseline implemented. The goal is to make AI capability reusable, govern
 - Prompt marketplace with versioning, ownership, approval, and rollback. Baseline done through `PromptMarketplace`.
 - Tool marketplace with schema validation, permissions, examples, and usage analytics. Baseline done through `ToolMarketplace`.
 - Private deployment and multi-tenant isolation for enterprise environments. Baseline done through `TenantRegistry`.
+- Multi-tenant isolation tests for replay, feedback, and internal tool visibility. Done.

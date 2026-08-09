@@ -68,6 +68,14 @@ The demo Audit tab works like a small governance console:
 - Select a row to compare context snapshots before and after tool execution.
 - Open `/chat?lang=zh&audit=demo-auto` to run a sample tool call and land on the audit view.
 
+## P1 Competitive Demo Upgrades
+
+- Declarative Flow editor in the Agent tab: edit YAML or JSON, preview phases/steps, run, resume, and recover runs.
+- Multi-provider schema comparison: `GET /api/debug/schema-compare` returns OpenAI, Azure OpenAI, DeepSeek, Tongyi Qwen, Doubao, and Ollama schemas for the same tools.
+- Long-task recovery proof: `POST /api/agent/runs/{runId}/recover` reloads run state, checkpoints, and artifacts from the configured run stores.
+- Existing-system adoption skill: `skills/spring-ai-adapt-existing-system` now produces candidate inventories, generated tool facades, tests, README patches, and optional MCP provisioning plans.
+- Multi-tenant isolation coverage: replay, feedback, and internal tool visibility tests guard tenant boundaries.
+
 ## Maven Publishing
 
 The root POM includes GitHub Packages distribution management. Configure a Maven server named `github` in `~/.m2/settings.xml`, then run:

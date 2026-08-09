@@ -21,6 +21,24 @@ Poor candidates:
 - methods returning secrets, tokens, passwords, or raw credentials
 - internal infrastructure methods
 
+## Scanning Heuristics
+
+Use names, annotations, and route paths together:
+
+- `@Service` methods usually contain the best business capability candidates.
+- `@Controller` and `@RestController` routes reveal user-facing operation names and permissions.
+- DTO field names reveal parameter semantics and sensitive fields.
+- Security annotations such as `@PreAuthorize` should be translated into `@AiToolRequiresPermission` metadata.
+- Repository methods are inputs to facade design, not direct tool candidates.
+
+Suggested name normalization:
+
+- `queryUserBalance` -> `query_user_balance`
+- `sendSms` -> `send_sms`
+- `createOrder` -> `create_order`
+- `refundOrder` -> `refund_order`
+- `approveInvoice` -> `approve_invoice`
+
 ## Permission Keys
 
 Use stable domain-action keys:
@@ -109,3 +127,42 @@ public McpCapabilityCatalog customerMcpCatalog() {
     ));
 }
 ```
+
+## Test Matrix
+
+Every generated adaptation should include focused tests:
+
+| Concern | Test expectation |
+| --- | --- |
+| Registration | Generated facade methods appear in `ToolRegistry`. |
+| Schema | Parameters, required fields, enum values, descriptions, and validation bounds are exported. |
+| Permission | Metadata contains the inferred or copied permission key. |
+| Risk | `HIGH` and `CRITICAL` tools require approval before execution. |
+| Sensitive data | Sensitive input/output is masked in audit-facing results. |
+| Context | Confirmed user choices become replayable context facts. |
+| Idempotency | Retried side-effecting calls return cached results when the same key is used. |
+| Tenant isolation | Tenant A cannot see tenant B replay, feedback, or internal tools unless explicitly allowed. |
+| MCP plan | Missing external capability returns a plan with id, risk, permissions, and approval requirement. |
+
+## README Patch Template
+
+````markdown
+## AI Tool Adapter
+
+This service exposes selected business capabilities as governed AI tools.
+
+```xml
+<dependency>
+  <groupId>com.c8software.spring.ai</groupId>
+  <artifactId>spring-ai-tool-adapter-starter</artifactId>
+  <version>${spring-ai-tool-adapter.version}</version>
+</dependency>
+```
+
+Inspect tools:
+
+- `GET /api/tools`
+- `GET /api/debug/schema`
+
+High-risk tools use human approval before execution. Tool calls are audited with tenant, user, trace id, input/output hashes, and context snapshots.
+````

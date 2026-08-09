@@ -65,6 +65,9 @@
     .agent-hero strong{display:block;font-size:18px;color:#102a56}
     .agent-hero span{display:block;margin-top:4px;color:#475467;font-size:13px;line-height:1.4}
     .agent-buttons{display:flex;gap:8px;white-space:nowrap}
+    .flow-editor{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:10px;margin-bottom:12px}
+    .flow-editor textarea{min-height:220px;font-family:Consolas,monospace;font-size:12px}
+    .flow-editor-side{display:flex;flex-direction:column;gap:8px}
     .agent-visual{display:none}
     .agent-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
     .agent-metric{border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px}
@@ -242,6 +245,17 @@
             <button id="resumeAgentButton" class="secondary" onclick="resumeAgent()">Resume</button>
           </div>
         </div>
+        <div class="flow-editor">
+          <textarea id="flowSpecEditor" spellcheck="false"></textarea>
+          <div class="flow-editor-side">
+            <select id="flowSpecFormat">
+              <option value="yaml">YAML</option>
+              <option value="json">JSON</option>
+            </select>
+            <button id="previewFlowButton" class="ghost" onclick="previewAgentFlow()">Preview</button>
+            <button id="recoverAgentButton" class="ghost" onclick="recoverAgent()">Recover</button>
+          </div>
+        </div>
       </div>
       <div id="agentVisual" class="agent-visual"></div>
       <pre id="debugOutput"></pre>
@@ -306,6 +320,8 @@ const I18N = {
     agentPromoSubtitle: 'Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.',
     startAgentButton: 'Start Agent',
     resumeAgentButton: 'Resume',
+    previewFlowButton: 'Preview',
+    recoverAgentButton: 'Recover',
     runtime: 'Runtime',
     mode: 'Mode',
     runStatus: 'Run Status',
@@ -434,6 +450,7 @@ const NAME_TEXT = {
 let tools = [];
 let currentAgentRunId = '';
 let currentAgentSpec = '';
+let currentAgentFormat = 'yaml';
 let agentWeaverInfo = {};
 let pendingApprovalId = '';
 let auditRows = [];
@@ -469,7 +486,7 @@ function applyLocale(){
     'tenantLabel','v0StatusLabel','v1StatusLabel','v3StatusLabel','tokenUsageLabel','permissionScopesTitle',
     'availableToolsTitle','debugTitle','tabPrompt','tabSchema','tabAudit','tabReplay','tabAgent','tabMarket',
     'tabFeedback','auditBannerTitle','auditBannerText','auditSearchButton','auditBeforeTitle','auditAfterTitle',
-    'startAgentButton','resumeAgentButton'
+    'startAgentButton','resumeAgentButton','previewFlowButton','recoverAgentButton'
   ].forEach(id => setText(id, id));
   const userInput = document.getElementById('userInput');
   if (userInput) userInput.value = t('userInput');
@@ -546,9 +563,10 @@ async function loadV3Status(){
 }
 
 async function loadDebug(){
-  const [prompt, schema, audit, replay, sampleFlow, agentWeaver, prompts, marketTools, feedback] = await Promise.all([
+  const [prompt, schema, schemaCompare, audit, replay, sampleFlow, agentWeaver, prompts, marketTools, feedback] = await Promise.all([
     fetch('/api/debug/prompt').then(r=>r.json()),
     fetch('/api/debug/schema').then(r=>r.json()),
+    fetch('/api/debug/schema-compare').then(r=>r.json()),
     fetch('/api/audit/logs').then(r=>r.json()),
     fetch('/api/replay/demo-session').then(r=>r.json()),
     fetch('/api/agent/sample-flow').then(r=>r.json()),
@@ -558,12 +576,17 @@ async function loadDebug(){
     fetch('/api/learning/feedback').then(r=>r.json())
   ]);
   debugCache.prompt = prompt.prompt;
-  debugCache.schema = pretty(schema);
+  debugCache.schema = pretty({openAiList: schema, providerComparison: schemaCompare});
   debugCache.audit = pretty(audit);
   auditRows = audit;
   renderAuditConsole(auditRows);
   debugCache.replay = pretty(replay);
   currentAgentSpec = sampleFlow.spec;
+  currentAgentFormat = sampleFlow.format || 'yaml';
+  const flowEditor = document.getElementById('flowSpecEditor');
+  const flowFormat = document.getElementById('flowSpecFormat');
+  if (flowEditor && !flowEditor.value.trim()) flowEditor.value = currentAgentSpec;
+  if (flowFormat) flowFormat.value = currentAgentFormat;
   agentWeaverInfo = agentWeaver;
   document.getElementById('agentPromoTitle').textContent = locale === 'zh' ? t('agentPromoTitle') : (agentWeaver.promotionTitle || t('agentPromoTitle'));
   document.getElementById('agentPromoSubtitle').textContent = locale === 'zh' ? t('agentPromoSubtitle') : (agentWeaver.promotionSubtitle || t('agentPromoSubtitle'));
@@ -761,10 +784,11 @@ function promoRunningRun(){
 }
 
 async function startAgent(){
+  syncFlowSpecFromEditor();
   const response = await fetch('/api/agent/start',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
+    body:JSON.stringify({format:currentAgentFormat, spec:currentAgentSpec})
   });
   const res = await response.json();
   if (!response.ok) {
@@ -775,6 +799,7 @@ async function startAgent(){
 }
 
 async function resumeAgent(){
+  syncFlowSpecFromEditor();
   if (!currentAgentRunId) {
     await startAgent();
     return;
@@ -782,7 +807,7 @@ async function resumeAgent(){
   const response = await fetch(`/api/agent/runs/${currentAgentRunId}/resume`,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
+    body:JSON.stringify({format:currentAgentFormat, spec:currentAgentSpec})
   });
   const res = await response.json();
   if (!response.ok) {
@@ -790,6 +815,53 @@ async function resumeAgent(){
     res.errorMessage = res.message || 'Agent resume failed';
   }
   renderAgentRun(res);
+}
+
+async function previewAgentFlow(){
+  syncFlowSpecFromEditor();
+  const response = await fetch('/api/agent/parse',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({format:currentAgentFormat, spec:currentAgentSpec})
+  });
+  const res = await response.json();
+  if (!response.ok) {
+    res.status = `ERROR ${response.status}`;
+    res.errorMessage = res.message || 'Flow preview failed';
+  }
+  if (res.flow) {
+    renderAgentVisual({status:'READY', flow:res.flow, completedStepIds:[], checkpoints:[], artifacts:[]});
+    debugCache.agent = `${t('sampleFlow')}:\n${currentAgentSpec}\n\n${t('flow')}:\n${pretty(res.flow)}`;
+  } else {
+    debugCache.agent = pretty(res);
+  }
+  showDebug('agent');
+}
+
+async function recoverAgent(){
+  syncFlowSpecFromEditor();
+  if (!currentAgentRunId) {
+    await startAgent();
+    return;
+  }
+  const response = await fetch(`/api/agent/runs/${currentAgentRunId}/recover`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({format:currentAgentFormat, spec:currentAgentSpec})
+  });
+  const res = await response.json();
+  if (!response.ok) {
+    res.status = `ERROR ${response.status}`;
+    res.errorMessage = res.message || 'Agent recover failed';
+  }
+  renderAgentRun(res);
+}
+
+function syncFlowSpecFromEditor(){
+  const flowEditor = document.getElementById('flowSpecEditor');
+  const flowFormat = document.getElementById('flowSpecFormat');
+  currentAgentSpec = flowEditor && flowEditor.value.trim() ? flowEditor.value : currentAgentSpec;
+  currentAgentFormat = flowFormat ? flowFormat.value : currentAgentFormat;
 }
 
 function syncArgumentTemplate(){

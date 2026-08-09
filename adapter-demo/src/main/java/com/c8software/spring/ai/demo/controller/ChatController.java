@@ -31,6 +31,12 @@ import com.c8software.spring.ai.core.mcp.McpProvisioningPlanner;
 import com.c8software.spring.ai.core.mcp.McpSemanticRequest;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.c8software.spring.ai.core.schema.OpenAIFunctionSchemaConverter;
+import com.c8software.spring.ai.core.schema.AzureOpenAISchemaConverter;
+import com.c8software.spring.ai.core.schema.DeepSeekSchemaConverter;
+import com.c8software.spring.ai.core.schema.DoubaoSchemaConverter;
+import com.c8software.spring.ai.core.schema.OllamaSchemaConverter;
+import com.c8software.spring.ai.core.schema.TongyiQwenSchemaConverter;
+import com.c8software.spring.ai.core.schema.ToolSchemaConverter;
 import com.c8software.spring.ai.core.visibility.ToolVisibilityFilter;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -89,6 +95,15 @@ public class ChatController {
 
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
+    private final List<ToolSchemaConverter> schemaConverters = Arrays.<ToolSchemaConverter>asList(
+            new OpenAIFunctionSchemaConverter(),
+            new AzureOpenAISchemaConverter(),
+            new DeepSeekSchemaConverter(),
+            new TongyiQwenSchemaConverter(),
+            new DoubaoSchemaConverter(),
+            new OllamaSchemaConverter()
+    );
+
     public ChatController(ToolRegistry registry, BusinessAiHub businessAiHub, McpProvisioningPlanner mcpProvisioningPlanner,
                           ToolVisibilityFilter visibilityFilter, MetricsCollector metricsCollector,
                           ConversationReplayStore replayStore,
@@ -144,6 +159,20 @@ public class ChatController {
         List<Map<String, Object>> result = new ArrayList<>();
         for (ToolDefinition definition : visibilityFilter.filter(registry.listAll(), demoExecutionContext())) {
             result.add(schemaConverter.convert(definition));
+        }
+        return result;
+    }
+
+    @GetMapping("/api/debug/schema-compare")
+    @ResponseBody
+    public Map<String, Object> schemaCompare() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (ToolDefinition definition : visibilityFilter.filter(registry.listAll(), demoExecutionContext())) {
+            Map<String, Object> byProvider = new LinkedHashMap<>();
+            for (ToolSchemaConverter converter : schemaConverters) {
+                byProvider.put(converter.provider(), converter.convert(definition));
+            }
+            result.put(definition.getName(), byProvider);
         }
         return result;
     }
@@ -255,9 +284,11 @@ public class ChatController {
         result.put("capabilities", Arrays.asList(
                 "java-native agent harness",
                 "yaml/json flow spec",
+                "declarative flow editor",
                 "phase and step execution",
                 "checkpoint persistence",
                 "artifact persistence",
+                "jdbc run recovery demo",
                 "human waiting nodes",
                 "resume",
                 "AgentWeaver-style flow visualization"
@@ -365,11 +396,44 @@ public class ChatController {
         return agentRunDto(state, flow);
     }
 
+    @PostMapping("/api/agent/parse")
+    @ResponseBody
+    public Map<String, Object> parseAgentFlow(@RequestBody Map<String, String> body) {
+        String spec = body.getOrDefault("spec", sampleFlowSpec());
+        String format = body.getOrDefault("format", "yaml");
+        AgentFlowDefinition flow = "json".equalsIgnoreCase(format)
+                ? agentFlowSpecParser.parseJson(spec)
+                : agentFlowSpecParser.parseYaml(spec);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("valid", true);
+        result.put("format", format);
+        result.put("flow", flowDto(flow));
+        return result;
+    }
+
     @GetMapping("/api/agent/runs/{runId}")
     @ResponseBody
     public Map<String, Object> agentRun(@PathVariable String runId) {
         AgentRunState state = agentRunStore.get(runId);
         return agentRunDto(state, null);
+    }
+
+    @PostMapping("/api/agent/runs/{runId}/recover")
+    @ResponseBody
+    public Map<String, Object> recoverAgent(@PathVariable String runId, @RequestBody Map<String, String> body) {
+        AgentRunState restored = agentRunStore.get(runId);
+        Map<String, Object> result = agentRunDto(restored, null);
+        result.put("recoveredFrom", agentRunStore.getClass().getSimpleName());
+        result.put("artifactsRecovered", restored == null ? 0 : artifactStore.listByRunId(runId).size());
+        result.put("checkpointsRecovered", restored == null ? 0 : restored.getCheckpoints().size());
+        if (restored != null && body.containsKey("spec")) {
+            String format = body.getOrDefault("format", "yaml");
+            AgentFlowDefinition flow = "json".equalsIgnoreCase(format)
+                    ? agentFlowSpecParser.parseJson(body.get("spec"))
+                    : agentFlowSpecParser.parseYaml(body.get("spec"));
+            result.put("flow", flowDto(flow));
+        }
+        return result;
     }
 
     @PostMapping("/api/agent/runs/{runId}/resume")

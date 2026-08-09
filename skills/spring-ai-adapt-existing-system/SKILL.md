@@ -23,6 +23,7 @@ The skill turns existing business methods into governed AI tools:
    - Find `pom.xml` or `build.gradle`.
    - Find Spring Boot entry points, `@Service`, `@Component`, `@Controller`, and security configuration.
    - Prefer `rg` for discovery.
+   - Build a candidate inventory before editing. Include class name, method name, parameters, return type, inferred domain, inferred risk, and why it should or should not become a tool.
 
 2. Classify candidate business capabilities.
    - Query/read methods are usually `RiskLevel.LOW`.
@@ -39,6 +40,7 @@ The skill turns existing business methods into governed AI tools:
    - Prefer a facade class named like `AiBusinessTools` when existing service methods are too low-level.
    - Keep business logic in existing services.
    - The AI tool method should delegate to existing services and only carry semantic/governance annotations.
+   - Generate one facade per bounded domain when a project has many services, for example `CustomerAiTools`, `FinanceAiTools`, or `OrderAiTools`.
 
 5. Add governance annotations.
    - Always add `@AiToolRequiresPermission` for enterprise capabilities.
@@ -53,6 +55,8 @@ The skill turns existing business methods into governed AI tools:
    - Create or extend an `McpCapabilityCatalog` bean in the target app.
    - Return an `McpProvisionPlan`; do not auto-install or auto-enable external MCP servers.
    - High-risk or external-data MCP capabilities must be approval-gated.
+   - Add semantic tags from domain names, controller route names, DTO names, and common user phrases.
+   - Add tests for the matched capability id, required permissions, risk level, and approval requirement.
 
 7. Add tests.
    - Test tool registration.
@@ -60,11 +64,53 @@ The skill turns existing business methods into governed AI tools:
    - Test schema export for parameters.
    - Test execution path with mocked service dependencies.
    - Test MCP provisioning plans when MCP catalog or matcher code is generated.
+   - Test that high-risk tools require approval instead of executing directly.
+   - Test that sensitive parameters or return values are masked in audit-facing results.
+   - Test tenant A/B visibility or replay isolation when the target project has tenant context.
 
 8. Validate.
    - Run the target build (`mvn test` or Gradle equivalent).
    - Scan generated Java for placeholder packages and encoding damage.
    - Report exact files changed and verification results.
+
+## Required Artifacts
+
+When adapting an existing system, produce these artifacts whenever the target project shape allows it:
+
+- `docs/ai-tool-adapter-candidates.md`: a table of scanned services and recommended tool mappings.
+- One or more `*AiTools` facade classes under the target project's real package.
+- Adapter configuration in `application.yml` or Java config only when needed.
+- Registration/schema/execution tests.
+- Optional `McpCapabilityCatalog` extension when external integrations are requested.
+- A README patch showing the one-minute usage path for that target system.
+
+## Candidate Inventory Format
+
+Use this table shape in `docs/ai-tool-adapter-candidates.md`:
+
+| Class | Method | Tool Name | Risk | Permission | Context Keys | Decision |
+| --- | --- | --- | --- | --- | --- | --- |
+| `OrderService` | `createOrder` | `order_create` | `HIGH` | `order:create` | `selectedCustomerId,lastOrderId` | expose via facade |
+| `UserRepository` | `save` | - | - | - | - | reject: raw persistence method |
+
+## Generated Facade Rules
+
+- Facades must not contain business logic beyond parameter normalization and delegation.
+- Tool names must be stable snake_case business capabilities.
+- Do not expose methods returning credentials, secrets, raw tokens, or unrestricted exports.
+- Add `@AiToolVisibility(ToolVisibility.INTERNAL)` for orchestration-only tools.
+- Add `@AiToolVersion` when changing an existing tool contract.
+- Add `@AiToolContextKey` on parameters or methods when user choices should survive future turns.
+
+## README Patch Rules
+
+Add a short target-system section with:
+
+- dependency snippet
+- one example annotated facade method
+- endpoint or UI path to inspect registered tools
+- how high-risk approval is handled
+- how to run tests
 
 ## Generation Rules
 
