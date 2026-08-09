@@ -1,9 +1,11 @@
 package com.c8software.spring.ai.agent;
 
+import com.c8software.spring.ai.core.config.AiToolAutoConfiguration;
 import com.c8software.spring.ai.core.execution.ToolExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -14,11 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @AutoConfiguration
+@AutoConfigureAfter(AiToolAutoConfiguration.class)
 public class AgentHarnessAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ObjectMapper agentHarnessObjectMapper() {
-        return new ObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
+        return objectMapper;
     }
 
     @Bean

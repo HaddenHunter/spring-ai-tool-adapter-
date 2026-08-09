@@ -34,7 +34,7 @@
     .tool-card pre{border-radius:0;min-height:90px;max-height:210px}
     .composer{padding:14px;border-top:1px solid var(--line);background:#fbfcfe}
     .composer-row{display:grid;grid-template-columns:1fr 110px;gap:10px;margin-top:10px}
-    .task-visual{display:grid;grid-template-rows:auto 1fr}
+    .task-visual{grid-column:2;grid-row:1;display:grid;grid-template-rows:auto 1fr}
     .flow{display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:8px;padding:4px 0 16px}
     .node{border:1px solid var(--line);border-radius:8px;padding:10px;background:#f8fafc;text-align:center;min-height:70px}
     .node b{display:block;font-size:13px;margin-bottom:6px}
@@ -44,23 +44,52 @@
     .status.done{background:#dcfae6;color:#067647}
     .connector{height:2px;background:#98a2b3}
     .node-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-    .node-row{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff;font-size:13px}
-    .governance{grid-row:1 / span 2}
+    .node-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff;font-size:13px}
+    .node-row b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+    .governance{grid-column:3;grid-row:1 / span 2}
     .stat{display:grid;grid-template-columns:1fr auto;gap:8px;border-bottom:1px solid #eef1f5;padding:9px 0;font-size:13px}
     .tool-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;max-height:310px;overflow:auto}
     .tool-item{border:1px solid var(--line);border-radius:6px;padding:8px;background:#fbfcfe}
     .tool-item b{display:block;font-size:13px}
     .tool-item span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.35}
     .scope{display:inline-block;margin:4px 4px 0 0;padding:4px 7px;border-radius:99px;background:#eef4ff;color:#1849a9;font-size:12px}
-    .debug{grid-column:2;display:grid;grid-template-rows:auto 1fr}
+    .debug{grid-column:2;grid-row:2;display:grid;grid-template-rows:auto 1fr}
     .tabs{display:flex;gap:6px}
     .tabs button{height:30px}
     .tabs button.active{background:#0f172a}
     .debug-body{padding:14px;overflow:auto}
+    .agent-actions{display:none;margin-bottom:12px}
+    .agent-hero{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;border:1px solid #b9cdfc;background:#f5f8ff;border-radius:8px;padding:14px;margin-bottom:12px}
+    .agent-hero strong{display:block;font-size:18px;color:#102a56}
+    .agent-hero span{display:block;margin-top:4px;color:#475467;font-size:13px;line-height:1.4}
+    .agent-buttons{display:flex;gap:8px;white-space:nowrap}
+    .agent-visual{display:none}
+    .agent-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+    .agent-metric{border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px}
+    .agent-metric span{display:block;color:#667085;font-size:12px;margin-bottom:6px}
+    .agent-metric b{font-size:15px;color:#101828}
+    .agent-flow-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+    .agent-phase-card{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+    .agent-phase-head{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;background:#f8fafc;border-bottom:1px solid var(--line);font-weight:700}
+    .agent-step{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid #eef1f5;font-size:13px}
+    .agent-step div span{display:block;margin-top:2px}
+    .agent-step:last-child{border-bottom:0}
+    .step-dot{width:9px;height:9px;border-radius:99px;background:#98a2b3}
+    .agent-step.done .step-dot{background:var(--green)}
+    .agent-step.current .step-dot{background:var(--amber)}
+    .agent-step-type{font-size:11px;border-radius:99px;background:#eef2f6;color:#475467;padding:3px 7px}
+    .agent-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .agent-list{border:1px solid var(--line);border-radius:8px;background:#fff;min-height:120px;overflow:hidden}
+    .agent-list h3{padding:10px 12px;border-bottom:1px solid var(--line);background:#f8fafc}
+    .agent-list-item{padding:9px 12px;border-bottom:1px solid #eef1f5;font-size:12px;color:#475467}
+    .agent-list-item:last-child{border-bottom:0}
+    .agent-list-item b{display:block;color:#101828;font-size:13px;margin-bottom:3px}
+    .promo-agent .shell{grid-template-columns:minmax(360px,.9fr) minmax(560px,1.25fr) 320px;grid-template-rows:auto minmax(560px,auto)}
+    .promo-agent .debug{grid-column:2 / span 2;grid-row:2}
     .muted{color:var(--muted)}
     .token-bar{height:8px;border-radius:99px;background:#eaecf0;overflow:hidden}
     .token-fill{height:100%;width:0;background:var(--green)}
-    @media(max-width:1100px){.shell{grid-template-columns:1fr;grid-template-rows:auto}.conversation,.governance,.debug{grid-column:auto;grid-row:auto}.flow{grid-template-columns:1fr}.connector{height:16px;width:2px;margin:0 auto}.node-grid{grid-template-columns:1fr}}
+    @media(max-width:1100px){.shell{grid-template-columns:1fr;grid-template-rows:auto}.conversation,.governance,.debug{grid-column:auto;grid-row:auto}.flow{grid-template-columns:1fr}.connector{height:16px;width:2px;margin:0 auto}.node-grid,.agent-flow-board,.agent-two-col,.agent-strip{grid-template-columns:1fr}.agent-hero{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -146,10 +175,19 @@
       </div>
     </div>
     <div class="debug-body">
-      <div id="agentActions" style="display:none;margin-bottom:10px">
-        <button onclick="startAgent()">Start Agent</button>
-        <button class="secondary" onclick="resumeAgent()">Resume</button>
+      <div id="agentActions" class="agent-actions">
+        <div class="agent-hero">
+          <div>
+            <strong id="agentPromoTitle">AgentWeaver Flow, Spring Governance</strong>
+            <span id="agentPromoSubtitle">Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.</span>
+          </div>
+          <div class="agent-buttons">
+            <button onclick="startAgent()">Start Agent</button>
+            <button class="secondary" onclick="resumeAgent()">Resume</button>
+          </div>
+        </div>
       </div>
+      <div id="agentVisual" class="agent-visual"></div>
       <pre id="debugOutput"></pre>
     </div>
   </section>
@@ -159,6 +197,7 @@
 let tools = [];
 let currentAgentRunId = '';
 let currentAgentSpec = '';
+let agentWeaverInfo = {};
 let debugCache = {prompt:'', schema:'', audit:'', replay:'', agent:'', market:'', feedback:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
@@ -219,12 +258,13 @@ async function loadV3Status(){
 }
 
 async function loadDebug(){
-  const [prompt, schema, audit, replay, sampleFlow, prompts, marketTools, feedback] = await Promise.all([
+  const [prompt, schema, audit, replay, sampleFlow, agentWeaver, prompts, marketTools, feedback] = await Promise.all([
     fetch('/api/debug/prompt').then(r=>r.json()),
     fetch('/api/debug/schema').then(r=>r.json()),
     fetch('/api/audit/logs').then(r=>r.json()),
     fetch('/api/replay/demo-session').then(r=>r.json()),
     fetch('/api/agent/sample-flow').then(r=>r.json()),
+    fetch('/api/agent/agentweaver').then(r=>r.json()),
     fetch('/api/marketplace/prompts').then(r=>r.json()),
     fetch('/api/marketplace/tools').then(r=>r.json()),
     fetch('/api/learning/feedback').then(r=>r.json())
@@ -234,7 +274,11 @@ async function loadDebug(){
   debugCache.audit = pretty(audit);
   debugCache.replay = pretty(replay);
   currentAgentSpec = sampleFlow.spec;
-  debugCache.agent = `Sample Flow Spec:\n\n${sampleFlow.spec}\n\nRun State:\n${currentAgentRunId ? 'Use Resume or Start Agent to refresh.' : 'No run started.'}`;
+  agentWeaverInfo = agentWeaver;
+  document.getElementById('agentPromoTitle').textContent = agentWeaver.promotionTitle || 'AgentWeaver Flow, Spring Governance';
+  document.getElementById('agentPromoSubtitle').textContent = agentWeaver.promotionSubtitle || '';
+  debugCache.agent = `AgentWeaver Compatibility:\n${pretty(agentWeaver)}\n\nSample Flow Spec:\n\n${sampleFlow.spec}\n\nRun State:\n${currentAgentRunId ? 'Use Resume or Start Agent to refresh.' : 'No run started.'}`;
+  renderAgentVisual(null);
   debugCache.market = pretty({prompts: prompts, tools: marketTools});
   debugCache.feedback = pretty(feedback);
 }
@@ -244,7 +288,61 @@ function showDebug(kind){
   const tabName = kind === 'market' ? 'Market' : kind.charAt(0).toUpperCase()+kind.slice(1);
   document.getElementById(`tab${tabName}`).classList.add('active');
   document.getElementById('agentActions').style.display = kind === 'agent' ? 'block' : 'none';
+  document.getElementById('agentVisual').style.display = kind === 'agent' ? 'block' : 'none';
   document.getElementById('debugOutput').textContent = debugCache[kind] || '';
+}
+
+function renderAgentVisual(data){
+  const container = document.getElementById('agentVisual');
+  if (!container) return;
+  const flow = data && data.flow ? data.flow : {
+    id:'agentweaver-governed-refund',
+    name:'AgentWeaver Governed Refund Flow',
+    phases:[
+      {id:'collect', name:'Collect Customer Context', steps:[
+        {id:'query-balance', name:'Query Balance', type:'TOOL', toolName:'mock_query_user_balance'},
+        {id:'human-confirm', name:'Human Approval', type:'HUMAN'}
+      ]},
+      {id:'execute', name:'Execute Governed Action', steps:[
+        {id:'query-weather', name:'Query External Signal', type:'TOOL', toolName:'mock_query_weather'},
+        {id:'review', name:'Review Artifacts', type:'REVIEW'}
+      ]}
+    ]
+  };
+  const completed = new Set(data && data.completedStepIds ? data.completedStepIds : []);
+  const current = data ? data.currentStepId : '';
+  const status = data ? data.status : 'READY';
+  const artifacts = data && data.artifacts ? data.artifacts : [];
+  const checkpoints = data && data.checkpoints ? data.checkpoints : [];
+  const phaseCards = (flow.phases || []).map(phase => `
+    <div class="agent-phase-card">
+      <div class="agent-phase-head"><span>${phase.name}</span><span class="status ${phase.id === (data && data.currentPhaseId) ? 'running' : 'ready'}">${phase.id}</span></div>
+      ${(phase.steps || []).map(step => {
+        const stepState = completed.has(step.id) ? 'done' : current === step.id ? 'current' : '';
+        return `<div class="agent-step ${stepState}">
+          <i class="step-dot"></i>
+          <div><b>${step.name}</b><span class="muted">${step.toolName || step.id}</span></div>
+          <span class="agent-step-type">${step.type}</span>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  container.innerHTML = `
+    <div class="agent-strip">
+      <div class="agent-metric"><span>Runtime</span><b>${agentWeaverInfo.runtime || 'Java native Agent Harness'}</b></div>
+      <div class="agent-metric"><span>Mode</span><b>${agentWeaverInfo.mode || 'AgentWeaver compatible'}</b></div>
+      <div class="agent-metric"><span>Run Status</span><b>${status}</b></div>
+    </div>
+    <div class="agent-flow-board">${phaseCards}</div>
+    <div class="agent-two-col">
+      <div class="agent-list">
+        <h3>Artifacts</h3>
+        ${artifacts.length ? artifacts.map(a => `<div class="agent-list-item"><b>${a.stepId} / ${a.type}</b>${JSON.stringify(a.content)}</div>`).join('') : '<div class="agent-list-item">No artifact yet. Start the flow to collect tool outputs.</div>'}
+      </div>
+      <div class="agent-list">
+        <h3>Checkpoints</h3>
+        ${checkpoints.length ? checkpoints.map(c => `<div class="agent-list-item"><b>${c.phaseId} / ${c.stepId}</b>${c.status} · ${c.createdAt}</div>`).join('') : '<div class="agent-list-item">No checkpoint yet. Human and tool steps will appear here.</div>'}
+      </div>
+    </div>`;
 }
 
 function renderAgentRun(data){
@@ -266,19 +364,26 @@ function renderAgentRun(data){
     'Artifacts:',
     pretty(data.artifacts || [])
   ].join('\n');
+  setStatus(data.status === 'COMPLETED' ? 'done' : (data.status === 'RUNNING' || data.status === 'WAITING') ? 'running' : 'ready');
   document.getElementById('taskStatus').textContent = data.status || 'READY';
-  document.getElementById('taskStatus').className = `status ${data.status === 'COMPLETED' ? 'done' : data.status === 'RUNNING' ? 'running' : 'ready'}`;
+  document.getElementById('taskStatus').className = `status ${data.status === 'COMPLETED' ? 'done' : data.status === 'RUNNING' || data.status === 'WAITING' ? 'running' : 'ready'}`;
   document.getElementById('sessionId').textContent = data.runId || 'demo-session';
   document.getElementById('lastStatus').textContent = data.status || 'idle';
+  renderAgentVisual(data);
   showDebug('agent');
 }
 
 async function startAgent(){
-  const res = await fetch('/api/agent/start',{
+  const response = await fetch('/api/agent/start',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
-  }).then(r=>r.json());
+  });
+  const res = await response.json();
+  if (!response.ok) {
+    res.status = `ERROR ${response.status}`;
+    res.errorMessage = res.message || 'Agent start failed';
+  }
   renderAgentRun(res);
 }
 
@@ -287,11 +392,16 @@ async function resumeAgent(){
     await startAgent();
     return;
   }
-  const res = await fetch(`/api/agent/runs/${currentAgentRunId}/resume`,{
+  const response = await fetch(`/api/agent/runs/${currentAgentRunId}/resume`,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({format:'yaml', spec:currentAgentSpec})
-  }).then(r=>r.json());
+  });
+  const res = await response.json();
+  if (!response.ok) {
+    res.status = `ERROR ${response.status}`;
+    res.errorMessage = res.message || 'Agent resume failed';
+  }
   renderAgentRun(res);
 }
 
@@ -362,7 +472,18 @@ async function send(){
   showDebug('audit');
 }
 
-refreshAll();
+async function init(){
+  await refreshAll();
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('promo') === 'agentweaver') {
+    document.body.classList.add('promo-agent');
+    showDebug('agent');
+    await startAgent();
+    await resumeAgent();
+  }
+}
+
+init();
 </script>
 </body>
 </html>

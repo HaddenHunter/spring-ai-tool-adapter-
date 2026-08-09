@@ -250,9 +250,11 @@ public class ChatController {
                 "checkpoint persistence",
                 "artifact persistence",
                 "human waiting nodes",
-                "resume"
+                "resume",
+                "AgentWeaver-style flow visualization"
         ));
         result.put("sampleFlowEndpoint", "/api/agent/sample-flow");
+        result.put("agentWeaverEndpoint", "/api/agent/agentweaver");
         result.put("startEndpoint", "/api/agent/start");
         return result;
     }
@@ -319,6 +321,26 @@ public class ChatController {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("format", "yaml");
         result.put("spec", sampleFlowSpec());
+        return result;
+    }
+
+    @GetMapping("/api/agent/agentweaver")
+    @ResponseBody
+    public Map<String, Object> agentWeaver() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("mode", "AgentWeaver compatible");
+        result.put("runtime", "Java native Agent Harness");
+        result.put("positioning", "AgentWeaver-style declarative flow mapped to governed Spring AI tool execution");
+        result.put("mapping", Arrays.asList(
+                "Flow Spec -> AgentFlowDefinition",
+                "Phase -> AgentPhase",
+                "Step -> AgentStepExecutor",
+                "Artifact -> ArtifactStore",
+                "Checkpoint -> AgentRunStore",
+                "Human node -> WAITING + Resume"
+        ));
+        result.put("promotionTitle", "AgentWeaver Flow, Spring Governance");
+        result.put("promotionSubtitle", "Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.");
         return result;
     }
 
@@ -424,23 +446,11 @@ public class ChatController {
     }
 
     private String sampleFlowSpec() {
-        return "id: demo-agent-flow\n"
-                + "name: Demo Agent Flow\n"
+        return "id: agentweaver-governed-refund\n"
+                + "name: AgentWeaver Governed Refund Flow\n"
                 + "phases:\n"
                 + "  - id: collect\n"
-                + "    name: Collect Context\n"
-                + "    steps:\n"
-                + "      - id: query-weather\n"
-                + "        name: Query Weather\n"
-                + "        type: tool\n"
-                + "        toolName: mock_query_weather\n"
-                + "        arguments:\n"
-                + "          city: Shanghai\n"
-                + "      - id: human-confirm\n"
-                + "        name: Human Confirm\n"
-                + "        type: human\n"
-                + "  - id: execute\n"
-                + "    name: Execute Governed Tool\n"
+                + "    name: Collect Customer Context\n"
                 + "    steps:\n"
                 + "      - id: query-balance\n"
                 + "        name: Query Balance\n"
@@ -448,8 +458,20 @@ public class ChatController {
                 + "        toolName: mock_query_user_balance\n"
                 + "        arguments:\n"
                 + "          userId: '1001'\n"
+                + "      - id: human-confirm\n"
+                + "        name: Human Approval\n"
+                + "        type: human\n"
+                + "  - id: execute\n"
+                + "    name: Execute Governed Action\n"
+                + "    steps:\n"
+                + "      - id: query-weather\n"
+                + "        name: Query External Signal\n"
+                + "        type: tool\n"
+                + "        toolName: mock_query_weather\n"
+                + "        arguments:\n"
+                + "          city: Shanghai\n"
                 + "      - id: review\n"
-                + "        name: Review Result\n"
+                + "        name: Review Artifacts\n"
                 + "        type: review\n"
                 + "        maxRepairAttempts: 1\n";
     }
@@ -469,8 +491,8 @@ public class ChatController {
         dto.put("errorMessage", state.getErrorMessage());
         dto.put("completedStepIds", state.getCompletedStepIds());
         dto.put("attributes", state.getAttributes());
-        dto.put("createdAt", state.getCreatedAt());
-        dto.put("updatedAt", state.getUpdatedAt());
+        dto.put("createdAt", stringValue(state.getCreatedAt()));
+        dto.put("updatedAt", stringValue(state.getUpdatedAt()));
         dto.put("checkpoints", checkpointDtos(state.getCheckpoints()));
         dto.put("artifacts", artifactDtos(artifactStore.listByRunId(state.getRunId())));
         if (flow != null) {
@@ -513,7 +535,7 @@ public class ChatController {
             dto.put("phaseId", checkpoint.getPhaseId());
             dto.put("stepId", checkpoint.getStepId());
             dto.put("status", checkpoint.getStatus());
-            dto.put("createdAt", checkpoint.getCreatedAt());
+            dto.put("createdAt", stringValue(checkpoint.getCreatedAt()));
             result.add(dto);
         }
         return result;
@@ -527,10 +549,14 @@ public class ChatController {
             dto.put("stepId", artifact.getStepId());
             dto.put("type", artifact.getType());
             dto.put("content", artifact.getContent());
-            dto.put("createdAt", artifact.getCreatedAt());
+            dto.put("createdAt", stringValue(artifact.getCreatedAt()));
             result.add(dto);
         }
         return result;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private Map<String, Object> toToolDto(ToolDefinition definition) {

@@ -66,6 +66,8 @@ Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring A
 
 Use `adapter-agent-harness` for Java-native v2 workflows with phases, steps, checkpoints, artifacts, review gates, repair loops, and human waiting nodes. It can invoke governed tools through `ToolAgentStepExecutor` and keeps AgentWeaver-style harness ideas as Java contracts.
 
+![AgentWeaver-compatible demo UI](docs/agentweaver-demo-promo.png)
+
 ## Codex Skill for Existing Systems
 
 This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Codex skill for teams adopting the framework in an existing Spring application. It guides Codex to scan current services, generate governed `@AiTool` facades, bind session context, add semantic MCP provisioning plans, and create tests.

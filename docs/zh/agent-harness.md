@@ -135,6 +135,10 @@ UI 会展示：
 - Checkpoint：每步执行后的断点。
 - Resume：人工节点或中断后的恢复按钮。
 
+宣发截图：
+
+![AgentWeaver compatible demo](../agentweaver-demo-promo.png)
+
 ## 下一步
 
 - 外部 AgentWeaver CLI executor。

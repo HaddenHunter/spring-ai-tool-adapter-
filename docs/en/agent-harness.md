@@ -135,6 +135,10 @@ The UI shows:
 - Checkpoint: resumable execution points after steps.
 - Resume: button for human nodes or interrupted runs.
 
+Promotion screenshot:
+
+![AgentWeaver compatible demo](../agentweaver-demo-promo.png)
+
 ## Next Steps
 
 - External AgentWeaver CLI executor.
