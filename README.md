@@ -24,6 +24,19 @@ Use the starter in existing Spring Boot applications:
 
 The starter auto-registers `AiToolAutoConfiguration` for Spring Boot 2 and Spring Boot 3.
 
+One-minute runnable starter sample:
+
+```bash
+mvn -pl examples/starter-minimal spring-boot:run
+```
+
+Then open:
+
+- `http://localhost:8081/tools`
+- `http://localhost:8081/tools/openai-schema`
+
+See [One-Minute Starter Quickstart](docs/en/one-minute-starter.md) and [一分钟 Starter 接入](docs/zh/one-minute-starter.md).
+
 ## Example Tools
 
 - `mock_query_user_balance`
@@ -111,9 +124,11 @@ This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Co
 ## Documents
 
 - [Chinese User Guide](docs/zh/user-guide.md)
+- [一分钟 Starter 接入](docs/zh/one-minute-starter.md)
 - [Chinese Java Usage](docs/zh/java-usage.md)
 - [Chinese Feature Reference](docs/zh/feature-reference.md)
 - [English User Guide](docs/en/user-guide.md)
+- [One-Minute Starter Quickstart](docs/en/one-minute-starter.md)
 - [English Feature Reference](docs/en/feature-reference.md)
 - [Chinese Spring AI Integration](docs/zh/spring-ai-integration.md)
 - [English Spring AI Integration](docs/en/spring-ai-integration.md)

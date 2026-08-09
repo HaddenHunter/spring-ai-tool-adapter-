@@ -39,6 +39,7 @@
         <module>spring-ai-tool-adapter-spring-ai</module>
         <module>adapter-agent-harness</module>
         <module>adapter-demo</module>
+        <module>examples/starter-minimal</module>
     </modules>
 
     <properties>
