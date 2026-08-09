@@ -79,6 +79,7 @@ This repository includes `skills/spring-ai-adapt-existing-system`, a reusable Co
 - [Architecture](architecture.md)
 - [Functional Plan](functional-plan.md)
 - [Roadmap](roadmap.md)
+- [v0 Completion](v0-completion.md)
 - [World Model](world-model.yaml)
 - [Capability Boundaries](capability-boundaries.yaml)
 - [Phase Prompts](phase-prompts.yaml)

@@ -39,14 +39,17 @@ public class ChatController {
 
     private final ToolVisibilityFilter visibilityFilter;
 
+    private final MetricsCollector metricsCollector;
+
     private final OpenAIFunctionSchemaConverter schemaConverter = new OpenAIFunctionSchemaConverter();
 
     public ChatController(ToolRegistry registry, ToolExecutor executor, McpProvisioningPlanner mcpProvisioningPlanner,
-                          ToolVisibilityFilter visibilityFilter) {
+                          ToolVisibilityFilter visibilityFilter, MetricsCollector metricsCollector) {
         this.registry = registry;
         this.executor = executor;
         this.mcpProvisioningPlanner = mcpProvisioningPlanner;
         this.visibilityFilter = visibilityFilter;
+        this.metricsCollector = metricsCollector;
     }
 
     @GetMapping({"/", "/chat"})
@@ -107,6 +110,34 @@ public class ChatController {
         return result;
     }
 
+    @GetMapping("/api/v0/status")
+    @ResponseBody
+    public Map<String, Object> v0Status() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("versionLine", "v0.x");
+        result.put("status", "COMPLETE");
+        result.put("capabilities", Arrays.asList(
+                "annotation registration",
+                "tool registry",
+                "multi-provider schema conversion",
+                "governed execution",
+                "timeout isolation",
+                "input and return-value masking",
+                "audit logging",
+                "visibility filtering",
+                "idempotency",
+                "human approval boundary",
+                "chat ui",
+                "debug endpoints",
+                "prometheus metrics",
+                "spring boot starter",
+                "maven publishing"
+        ));
+        result.put("toolCount", visibilityFilter.filter(registry.listAll(), demoExecutionContext()).size());
+        result.put("prometheusEndpoint", "/actuator/prometheus");
+        return result;
+    }
+
     @PostMapping("/api/mcp/semantic-plan")
     @ResponseBody
     public McpProvisionPlan semanticMcpPlan(@RequestBody Map<String, String> body) {
@@ -125,6 +156,7 @@ public class ChatController {
     public Map<String, Object> chat(@RequestBody Map<String, String> body) {
         String toolName = body.getOrDefault("toolName", "mock_query_weather");
         String arguments = body.getOrDefault("arguments", "{}");
+        metricsCollector.activeConversations().incrementAndGet();
         ExecutionContext context = new ExecutionContext(
                 "demo-user",
                 "demo-tenant",
@@ -132,13 +164,26 @@ public class ChatController {
                 new LinkedHashSet<>(Arrays.asList("demo:tool:invoke", "finance:read")),
                 Instant.now()
         );
-        ToolResult toolResult = executor.execute(toolName, arguments, context);
+        try {
+            ToolResult toolResult = executor.execute(toolName, arguments, context);
+            metricsCollector.recordToolCall();
+            metricsCollector.recordTokenUsage(estimateTokens(arguments));
+            if (!toolResult.isSuccess()) {
+                metricsCollector.recordToolError();
+            }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("message", toolResult.isSuccess() ? "Tool executed" : "Tool failed");
-        result.put("toolName", toolName);
-        result.put("result", toolResult);
-        return result;
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("message", toolResult.isSuccess() ? "Tool executed" : "Tool failed");
+            result.put("toolName", toolName);
+            result.put("result", toolResult);
+            return result;
+        } catch (RuntimeException ex) {
+            metricsCollector.recordToolCall();
+            metricsCollector.recordToolError();
+            throw ex;
+        } finally {
+            metricsCollector.activeConversations().decrementAndGet();
+        }
     }
 
     @GetMapping("/api/chat/stream")
@@ -175,9 +220,17 @@ public class ChatController {
         dto.put("rollbackMethod", definition.getMetadata().getRollbackMethod());
         dto.put("contextKey", definition.getMetadata().getContextKey());
         dto.put("contextConfirmed", definition.getMetadata().isContextConfirmed());
+        dto.put("resultSensitiveType", definition.getMetadata().getResultSensitiveType());
         dto.put("timeoutMillis", definition.getMetadata().getTimeoutMillis());
         dto.put("parameters", parameterDtos(definition.getParameters()));
         return dto;
+    }
+
+    private double estimateTokens(String text) {
+        if (text == null || text.isEmpty()) {
+            return 1.0d;
+        }
+        return Math.max(1.0d, Math.ceil(text.length() / 4.0d));
     }
 
     private List<Map<String, Object>> parameterDtos(List<ToolParameter> parameters) {

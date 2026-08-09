@@ -4,13 +4,14 @@ This project evolves from a tool-calling adapter into an enterprise AI operating
 
 ## v0.x - Tool Adapter
 
-Current focus: make Spring Bean methods reliably callable by LLMs.
+Status: complete for the 0.x baseline. The focus is making Spring Bean methods reliably callable by LLMs with governance, audit, demo UI, starter packaging, and Maven publishing.
 
-- Tool registration: annotation scanning, CGLIB-aware method discovery, thread-safe registry.
-- Schema: OpenAI-compatible schema plus DeepSeek, Tongyi Qwen, Doubao, and Ollama adapters.
-- Execution: JSON argument binding, permission checks, sensitive-data masking, timeout boundaries.
-- Audit: asynchronous audit records with trace, cost, status, and hashed input/output.
-- Chat UI: local demo page, mock tools, audit query endpoints, and Prometheus metrics.
+- Tool registration: annotation scanning, CGLIB-aware method discovery, thread-safe registry. Done.
+- Schema: OpenAI-compatible schema plus DeepSeek, Tongyi Qwen, Doubao, and Ollama adapters. Done.
+- Execution: JSON argument binding, permission checks, input and return-value masking, timeout isolation, idempotency, and approval boundary. Done.
+- Audit: asynchronous and JDBC audit records with trace, cost, status, hashed input/output, and context hashes. Done.
+- Chat UI: local demo page, mock tools, audit query endpoints, debug panels, governance panel, v0 status endpoint, and Prometheus metrics. Done.
+- Packaging: Spring Boot starter and GitHub Packages Maven publishing. Done.
 
 ## v1.x - Business AI Hub
 

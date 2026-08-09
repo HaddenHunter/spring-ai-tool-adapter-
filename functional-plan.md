@@ -91,6 +91,8 @@ MVP:
 - Deserialize JSON arguments to Java values.
 - Convert primitive wrapper types and enums through Jackson.
 - Invoke target methods through cached `MethodHandle`.
+- Isolate invocation through `ToolInvocationExecutor`.
+- Enforce timeout with `TimeoutToolInvocationExecutor`.
 - Wrap failures with `AiToolExecutionException`.
 - Write audit records after execution.
 - Include context snapshot hashes in audit records when context is bound.
@@ -111,7 +113,6 @@ LLM JSON
 Future:
 
 - `CompletableFuture` async tool support.
-- Explicit timeout runner around slow tools.
 - Durable idempotency store.
 
 ## 5. Permission Control
@@ -136,10 +137,10 @@ MVP:
 - `@AiToolSensitive(type = ...)` and legacy `@Sensitive`.
 - Built-in mobile, ID card, bank card, name, password, operator id, and custom categories.
 - Audit input uses masked values instead of raw sensitive values.
+- Method-level `@AiToolSensitive` masks whole return values through `ResultMasker`.
 
 Future:
 
-- Return-value masking before sending data back to LLM.
 - Field-level masking for complex return objects.
 
 ## 7. Audit Logging
@@ -163,10 +164,10 @@ Audit fields:
 MVP storage:
 
 - Async in-memory audit logger for demo and tests.
+- JDBC audit logger is auto-configured when a Spring `DataSource` exists.
 
 Future storage:
 
-- MySQL / PostgreSQL default storage.
 - Optional Elasticsearch / ClickHouse storage.
 - Audit replay UI.
 
@@ -335,25 +336,30 @@ Demo module:
 - Audit query endpoint.
 - Governance panel data.
 - Semantic MCP plan endpoint.
+- v0 status endpoint.
 
 Observability:
 
 - Audit record query.
-- Micrometer counters.
+- Micrometer counters for tool calls, tool errors, token usage, and active conversations.
 - Prometheus endpoint through Spring Boot Actuator configuration.
 
 ## 16. Production Readiness Roadmap
 
-Current version:
+Current v0.x baseline:
 
 - Framework contracts and default in-memory implementations.
 - Runnable demo.
 - Unit tests.
 - Codex migration skill.
+- Spring Boot starter.
+- GitHub Packages Maven publishing.
+- Timeout isolation.
+- Return-value masking.
+- JDBC audit auto-configuration.
 
 Next steps:
 
-- Durable audit storage.
 - Enterprise approval workflow.
 - Persistent idempotency store.
 - Advanced context persistence.

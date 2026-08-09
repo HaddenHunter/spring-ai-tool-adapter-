@@ -120,6 +120,7 @@
     <div class="panel-body">
       <div class="stat"><span>Current User</span><b id="currentUser">-</b></div>
       <div class="stat"><span>Tenant</span><b id="tenantId">-</b></div>
+      <div class="stat"><span>v0 Status</span><b id="v0Status">-</b></div>
       <div class="stat"><span>Token Usage</span><b id="tokenText">0 / 0</b></div>
       <div class="token-bar"><div id="tokenFill" class="token-fill"></div></div>
       <h3 style="margin-top:16px">Permission Scopes</h3>
@@ -151,7 +152,7 @@ let debugCache = {prompt:'', schema:'', audit:''};
 function pretty(value){ return JSON.stringify(value, null, 2); }
 
 async function refreshAll(){
-  await Promise.all([loadTools(), loadGovernance(), loadDebug()]);
+  await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadDebug()]);
   showDebug('prompt');
 }
 
@@ -175,6 +176,11 @@ async function loadGovernance(){
   document.getElementById('tokenText').textContent = `${data.tokenUsed} / ${data.tokenBudget}`;
   document.getElementById('tokenFill').style.width = `${Math.min(100, data.tokenUsed / data.tokenBudget * 100)}%`;
   document.getElementById('scopes').innerHTML = data.permissionScopes.map(s=>`<span class="scope">${s}</span>`).join('');
+}
+
+async function loadV0Status(){
+  const data = await fetch('/api/v0/status').then(r=>r.json());
+  document.getElementById('v0Status').textContent = data.status;
 }
 
 async function loadDebug(){
