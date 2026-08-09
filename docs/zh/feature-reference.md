@@ -2,9 +2,7 @@
 
 ## 1. 总览
 
-本项目提供一个企业级 AI Tool Adapter，用于把 Spring Bean 中的业务能力安全、可治理、可审计地暴露给 LLM / Agent。
-
-总体链路：
+本项目提供企业级 AI Tool Adapter，用于把 Spring Bean 中的业务能力安全、可治理、可审计地暴露给 LLM / Agent。
 
 ```text
 LLM / Agent
@@ -14,62 +12,40 @@ LLM / Agent
   -> Spring Bean 业务系统
 ```
 
-核心模块：
+核心能力：
 
 1. 注解与治理元数据
 2. 工具注册与发现
 3. Schema 生成
 4. 工具执行引擎
 5. 权限控制
-6. 参数脱敏
+6. 参数和返回值脱敏
 7. 审计日志
 8. Session + Context
 9. 任务编排
 10. 多模型适配
 11. Semantic MCP provisioning
-12. Codex Skill 自动接入旧系统
-13. P0 企业治理增强：持久化审计、审批、幂等、可见性过滤
+12. Codex Skill 自动接入已有系统
+13. P0 企业治理：持久审计、审批、幂等、可见性过滤、超时隔离、返回值脱敏
 14. Spring Boot Starter 自动装配
+15. Maven 发布配置
 
-## 1.1 Spring Boot Starter
+## 2. Spring Boot Starter
 
 `spring-ai-tool-adapter-starter` 用于让业务系统只添加一个依赖即可启用框架能力。
 
-Starter 内容：
+starter 内容：
 
 - 依赖 `adapter-core`
-- 提供 Spring Boot 2 的 `META-INF/spring.factories`
-- 提供 Spring Boot 3 的 `AutoConfiguration.imports`
+- 提供 Spring Boot 2 `META-INF/spring.factories`
+- 提供 Spring Boot 3 `AutoConfiguration.imports`
 - 自动加载 `AiToolAutoConfiguration`
 
-使用方依赖：
+## 3. 注解体系
 
-```xml
-<dependency>
-    <groupId>com.c8software.spring.ai</groupId>
-    <artifactId>spring-ai-tool-adapter-starter</artifactId>
-    <version>0.1.0</version>
-</dependency>
-```
+`@AiTool` 是入口注解，用于声明 Java 方法是 AI 可调用工具。
 
-## 2. 注解体系
-
-### 2.1 能力注解
-
-`@AiTool` 是入口注解，用于声明某个 Java 方法是 AI 可调用工具。
-
-字段：
-
-- `name`：全局唯一工具名
-- `description`：业务语义描述
-- `paramDescriptions`：参数描述兼容字段
-- `enabled`：是否启用
-- `requiresPermission`：兼容旧权限字段
-- `auditLevel`：兼容旧审计字段
-
-### 2.2 治理注解
-
-治理注解是企业落地的核心：
+治理注解包括：
 
 - `@AiToolRequiresPermission`
 - `@AiToolRiskLevel`
@@ -84,29 +60,9 @@ Starter 内容：
 
 这些注解只表达声明式元数据，不承载业务逻辑。
 
-### 2.3 元数据沉淀
+`ToolMetadata` 是不可变对象，包含分组、权限、审计级别、风险等级、可见性、版本、幂等配置、回滚配置、上下文绑定、返回值敏感类型、超时配置和扩展属性。
 
-注解会被 `AiToolRegistrar` 和 `ToolGovernanceAnnotationProcessor` 解析成：
-
-- `ToolDefinition`
-- `ToolMetadata`
-- `ToolParameter`
-
-`ToolMetadata` 是不可变对象，包含：
-
-- 分组
-- 权限
-- 审计级别
-- 风险等级
-- 可见性
-- 版本
-- 幂等配置
-- 回滚配置
-- 上下文绑定
-- 超时配置
-- 扩展属性
-
-## 3. 工具注册与发现
+## 4. 工具注册与发现
 
 `AiToolRegistrar` 实现 Spring `BeanPostProcessor`，在 Bean 初始化后扫描带 `@AiTool` 的方法。
 
@@ -131,7 +87,7 @@ Starter 内容：
 - MethodHandle 缓存
 - Spring AOP / CGLIB 目标类扫描
 
-## 4. Schema 生成
+## 5. Schema 生成
 
 `ToolSchemaConverter` 负责把 `ToolDefinition` 转换成模型可消费的 Tool Schema。
 
@@ -144,22 +100,9 @@ Starter 内容：
 - `DoubaoSchemaConverter`
 - `OllamaSchemaConverter`
 
-支持类型：
+支持基础类型、枚举、简单 `List<String>`，并导出 `@NotNull`、`@Min`、`@Max` 等校验信息。
 
-- `String`
-- `Integer` / `Long`
-- `BigDecimal` / `Double` / `Float`
-- `Boolean`
-- `Enum`
-- 简单 `List<String>`
-
-支持校验导出：
-
-- `@NotNull`
-- `@Min`
-- `@Max`
-
-## 5. 执行引擎
+## 6. 执行引擎
 
 核心接口：
 
@@ -169,69 +112,80 @@ public interface ToolExecutor {
 }
 ```
 
-默认实现：
+默认实现 `DefaultToolExecutor` 的步骤：
 
-```java
-DefaultToolExecutor
-```
+1. 从 `ToolRegistry` 查询工具。
+2. 反序列化 JSON 参数。
+3. 转换 Java 参数类型。
+4. 执行权限校验。
+5. 生成参数脱敏摘要。
+6. 触发高风险审批。
+7. 检查幂等命中。
+8. 通过 `ToolInvocationExecutor` 隔离调用业务方法。
+9. 通过 `ResultMasker` 脱敏返回值。
+10. 存储幂等结果。
+11. 生成 `ToolResult`。
+12. 写入审计记录。
+13. 包装异常或走 fallback。
 
-执行步骤：
+## 7. 超时执行隔离
 
-1. 从 `ToolRegistry` 查询工具
-2. JSON 参数反序列化
-3. 参数类型转换
-4. 权限校验
-5. 参数脱敏
-6. 高风险审批
-7. 幂等命中检查
-8. MethodHandle 调用业务方法
-9. 幂等结果存储
-10. 生成 `ToolResult`
-11. 写入审计记录
-12. 捕获并包装异常
-
-## 6. 权限控制
-
-SPI：
-
-```java
-PermissionChecker
-```
+`ToolInvocationExecutor` 是真实业务方法调用的隔离 SPI。
 
 默认实现：
 
 ```java
-DefaultPermissionChecker
+TimeoutToolInvocationExecutor
 ```
 
-默认策略：
+行为：
 
-- 从 `ToolMetadata.requiresPermission` 读取权限 key
-- 从 `ExecutionContext.permissions` 判断是否拥有权限
-- 不通过时抛出 `AiToolSecurityException`
+- 使用独立工作线程执行业务方法。
+- 使用 `ToolMetadata.timeoutMillis` 控制等待时间。
+- 超时后取消 Future 并抛出 `AiToolExecutionException`。
+- 错误码为 `AIT_EXEC_TIMEOUT`。
+- 调用方线程不会被慢工具长期拖住。
 
-生产建议：
+配置：
 
-- 接入 Spring Security
-- 接入 RBAC
-- 接入租户和数据权限
-- 支持 SpEL 或企业内部权限表达式
+```yaml
+ai:
+  tool:
+    default-timeout-millis: 10000
+```
 
-## 7. 参数脱敏
+企业可替换该 SPI，实现线程池隔离、远程沙箱、队列执行、熔断、租户级资源限制等策略。
+
+## 8. 参数和返回值脱敏
 
 SPI：
 
 ```java
 SensitiveMasker
+ResultMasker
 ```
 
-默认实现：
+参数级脱敏：
 
 ```java
-DefaultSensitiveMasker
+public UserInfo getUser(@AiToolSensitive(type = SensitiveType.ID_CARD) String idCard) {
+    ...
+}
 ```
 
-敏感类型：
+返回值脱敏：
+
+```java
+@AiTool(name = "query_mobile", description = "Query mobile")
+@AiToolSensitive(type = SensitiveType.MOBILE)
+public String queryMobile(Long userId) {
+    return "13812345678";
+}
+```
+
+方法级 `@AiToolSensitive` 会进入 `ToolMetadata.resultSensitiveType`，默认 `DefaultResultMasker` 会在返回 `ToolResult` 和写审计摘要前脱敏整个返回值。
+
+内置敏感类型：
 
 - `MOBILE`
 - `ID_CARD`
@@ -241,12 +195,7 @@ DefaultSensitiveMasker
 - `OPERATOR_ID`
 - `CUSTOM`
 
-脱敏作用范围：
-
-- 审计输入摘要
-- 后续可扩展到返回值脱敏
-
-## 8. 审计日志
+## 9. 审计日志
 
 SPI：
 
@@ -256,81 +205,55 @@ AuditLogger
 
 默认实现：
 
-```java
-AsyncAuditLogger
-```
-
-数据库实现：
-
-```java
-JdbcAuditLogger
-```
+- `AsyncAuditLogger`
+- `JdbcAuditLogger`
 
 当 Spring 容器中存在 `DataSource` 时，自动配置会优先创建 `JdbcAuditLogger`，并初始化 `ai_tool_audit_log` 表。
 
 审计字段：
 
-- `traceId`
-- `toolName`
-- `callerUser`
-- `tenantId`
-- `inputHash`
-- `outputHash`
-- `costMs`
-- `status`
-- `errorMessage`
-- `eventType`
-- `contextBeforeHash`
-- `contextAfterHash`
-- `timestamp`
+- traceId
+- toolName
+- callerUser
+- tenantId
+- inputHash
+- outputHash
+- costMs
+- status
+- errorMessage
+- eventType
+- contextBeforeHash
+- contextAfterHash
+- timestamp
 
-意义：
-
-- 可以追踪谁在什么时候调用了什么工具
-- 可以对比执行前后的上下文状态
-- 可以支持事后回放和合规检查
-
-查询能力：
-
-- `traceId`
-- `toolName`
-- `callerUser`
-- `tenantId`
-- `status`
-- `limit`
-
-## 8.1 审批与幂等
+## 10. 审批、幂等与可见性
 
 审批：
 
-- `ToolApprovalManager` 负责判断高风险工具是否能执行。
+- `ToolApprovalManager` 判断高风险工具是否可以执行。
 - `HumanInTheLoop` 是企业审批系统接入点。
-- 自动配置默认使用安全拒绝实现，未接入审批时不执行高风险工具。
+- starter 默认采用安全拒绝实现，未接入审批时不执行高风险工具。
 
 幂等：
 
 - `@AiToolIdempotent` 声明幂等 key。
 - `IdempotencyKeyResolver` 解析 key。
 - `IdempotencyStore` 存储成功结果。
-- 默认使用内存存储，生产建议替换为 Redis / DB。
+- 默认内存存储，生产建议替换为 Redis 或数据库。
 
-## 8.2 Tool 可见性过滤
+可见性：
 
-`ToolVisibilityFilter` 控制工具是否进入工具列表和 Schema。
+- `PUBLIC` 可见。
+- `INTERNAL` 需要 `tool:internal` 权限。
+- `DEPRECATED` 不可见。
 
-默认策略：
+## 11. Session + Context
 
-- `PUBLIC` 可见
-- `INTERNAL` 需要 `tool:internal` 权限
-- `DEPRECATED` 不可见
-
-## 9. Session + Context
-
-上下文模块解决：
+上下文模块记录：
 
 - 当前会话是谁
 - 当前任务是什么
-- 当前流程走到哪一步
+- 流程走到哪一步
 - 用户刚才确认了什么选择
 - 工具失败后状态是否仍然可恢复
 
@@ -346,120 +269,39 @@ JdbcAuditLogger
 - `ContextSnapshot`
 - `ConversationContextHolder`
 
-状态模型：
+## 12. Maven 发布
 
-```text
-Session: sessionId / tenantId / userId / role / model
-Task: taskId / taskType / taskStatus / currentStep / pendingApproval
-Choice: selectedCustomerId / selectedTemplateId / selectedAmount / userOverrides
+根 POM 已配置：
+
+- 项目 URL、SCM、license、developer 元数据
+- GitHub Packages `distributionManagement`
+- `maven-source-plugin`
+- `maven-javadoc-plugin`
+- `maven-deploy-plugin`
+
+发布前在 `~/.m2/settings.xml` 配置 `github` server，然后执行：
+
+```bash
+mvn -DskipTests deploy
 ```
 
-约束：
-
-- `adapter-core` 不依赖 HTTP Session
-- 确认过的用户选择不可被静默覆盖
-- 压缩上下文不能丢失 confirmed facts
-- 工具失败不能清空上下文
-
-## 10. 任务编排
-
-任务编排模块提供轻量 DAG 模型：
-
-- `TaskDefinition`
-- `TaskNode`
-- `TaskEdge`
-- `TaskNodeType`
-- `TaskExecutor`
-- `HumanInTheLoop`
-- `ApprovalRequest`
-- `ApprovalResponse`
-
-节点类型：
-
-- `TOOL`
-- `CONDITION`
-- `HUMAN_APPROVAL`
-- `SUB_TASK`
-
-当前实现重点是基础模型和 Tool 节点执行，后续可扩展条件分支、审批等待、回滚和长任务。
-
-## 11. Semantic MCP Provisioning
-
-该模块用于把自然语言集成需求转换成 MCP 接入计划。
-
-核心类型：
-
-- `McpCapabilityCatalog`
-- `McpCapabilityDescriptor`
-- `McpSemanticMatcher`
-- `McpProvisioningPlanner`
-- `McpProvisionPlan`
-
-默认目录包含：
-
-- CRM Customer MCP
-- Finance Readonly MCP
-- Messaging MCP
-
-返回状态：
-
-- `NO_MATCH`
-- `PERMISSION_REQUIRED`
-- `PENDING_APPROVAL`
-- `READY_TO_PROVISION`
-
-边界：
-
-- 不自动安装 MCP
-- 不自动授权外部系统
-- 只生成计划
-- 企业可替换 catalog 和 matcher
-
-## 12. Demo 功能
-
-Demo 工具：
-
-- `mock_query_user_balance`
-- `mock_send_sms`
-- `mock_create_order`
-- `mock_query_weather`
-- `mock_query_complaint_customer`
-
-Demo 页面包含：
-
-- 左侧对话区
-- 工具调用卡片
-- 当前任务可视化
-- 治理面板
-- 调试面板
-- Prompt / Schema / Audit 查看
-
-## 13. Codex Skill
-
-本项目内置：
+目标仓库：
 
 ```text
-skills/spring-ai-adapt-existing-system
+https://maven.pkg.github.com/HaddenHunter/spring-ai-tool-adapter-
 ```
 
-它用于帮助别人把已有 Spring 系统自动改造成可使用本框架的 AI Tool 系统。
+## 13. 当前实现程度
 
-生成内容：
+已实现：
 
-- Tool facade
-- 治理注解
-- Context key
-- MCP catalog
-- 测试
+- Core annotations、治理注解、注册、Schema、执行、审计、Context、MCP planning、starter、Demo。
+- P0 企业能力：持久审计、人工审批接入点、幂等保护、可见性过滤、超时隔离、返回值脱敏。
+- Maven 发布配置。
 
-## 14. 当前边界
+仍建议增强：
 
-当前版本聚焦 v0.x 工具适配器能力：
-
-- 已提供核心注解、注册、Schema、执行、审计、上下文、MCP 计划和 Demo。
-- 尚未提供生产级持久化审计存储。
-- 尚未提供真实审批流实现。
-- 尚未提供真实 MCP 安装器。
-- 尚未提供完整长任务运行时。
-
-这些能力通过 SPI 留给企业实现。
+- 发布到 Maven Central 的签名和 staging 流程。
+- Redis / DB 级幂等存储。
+- 对象字段级返回值脱敏。
+- 更完整的审批工作流和回滚执行器。

@@ -3,8 +3,10 @@ package com.c8software.spring.ai.core;
 import com.c8software.spring.ai.core.annotation.AiTool;
 import com.c8software.spring.ai.core.annotation.AiToolIdempotent;
 import com.c8software.spring.ai.core.annotation.AiToolRiskLevel;
+import com.c8software.spring.ai.core.annotation.AiToolSensitive;
 import com.c8software.spring.ai.core.annotation.AiToolVisibility;
 import com.c8software.spring.ai.core.annotation.RiskLevel;
+import com.c8software.spring.ai.core.annotation.SensitiveType;
 import com.c8software.spring.ai.core.annotation.ToolVisibility;
 import com.c8software.spring.ai.core.audit.AuditLogger;
 import com.c8software.spring.ai.core.audit.AuditRecord;
@@ -151,6 +153,52 @@ class ExecutionTest {
     }
 
     @Test
+    void timesOutToolExecutionInIsolatedWorker() {
+        ToolRegistry registry = new ToolRegistry();
+        AiToolProperties properties = new AiToolProperties();
+        properties.setDefaultTimeoutMillis(50L);
+        new AiToolRegistrar(registry, properties)
+                .postProcessAfterInitialization(new DemoTools(), "demoTools");
+        DefaultToolExecutor executor = new DefaultToolExecutor(
+                registry,
+                new DefaultPermissionChecker(),
+                new DefaultSensitiveMasker(),
+                new SyncAuditLogger(),
+                new ObjectMapper(),
+                properties
+        );
+
+        assertThatThrownBy(() -> executor.execute(
+                "slow",
+                "{}",
+                new ExecutionContext("tester", "tenant", "trace", Collections.emptySet(), Instant.now())
+        )).isInstanceOf(AiToolExecutionException.class)
+                .hasMessageContaining("timed out");
+    }
+
+    @Test
+    void masksSensitiveReturnValueBeforeReturningResult() {
+        ToolRegistry registry = new ToolRegistry();
+        new AiToolRegistrar(registry, new AiToolProperties())
+                .postProcessAfterInitialization(new DemoTools(), "demoTools");
+        DefaultToolExecutor executor = new DefaultToolExecutor(
+                registry,
+                new DefaultPermissionChecker(),
+                new DefaultSensitiveMasker(),
+                new SyncAuditLogger(),
+                new ObjectMapper()
+        );
+
+        ToolResult result = executor.execute(
+                "return_mobile",
+                "{}",
+                new ExecutionContext("tester", "tenant", "trace", Collections.emptySet(), Instant.now())
+        );
+
+        assertThat(result.getData()).isEqualTo("138****5678");
+    }
+
+    @Test
     void visibilityFilterHidesInternalToolsWithoutInternalPermission() {
         ToolRegistry registry = new ToolRegistry();
         new AiToolRegistrar(registry, new AiToolProperties())
@@ -193,6 +241,18 @@ class ExecutionTest {
         @AiToolVisibility(ToolVisibility.INTERNAL)
         public String internalTool() {
             return "internal";
+        }
+
+        @AiTool(name = "slow", description = "slow")
+        public String slow() throws InterruptedException {
+            Thread.sleep(500L);
+            return "late";
+        }
+
+        @AiTool(name = "return_mobile", description = "return mobile")
+        @AiToolSensitive(type = SensitiveType.MOBILE)
+        public String returnMobile() {
+            return "13812345678";
         }
     }
 

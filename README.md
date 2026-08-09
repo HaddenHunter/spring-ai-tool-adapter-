@@ -42,6 +42,17 @@ Tool annotations describe what can be called. Governance annotations describe wh
 - Human-in-the-loop approval gate for `HIGH` and `CRITICAL` risk tools.
 - Idempotency protection for tools annotated with `@AiToolIdempotent`.
 - Visibility filtering so `INTERNAL` and `DEPRECATED` tools do not pollute LLM schemas.
+- Timeout-isolated tool invocation through `ToolInvocationExecutor`.
+- Return-value masking through method-level `@AiToolSensitive`.
+- Maven publishing metadata for GitHub Packages.
+
+## Maven Publishing
+
+The root POM includes GitHub Packages distribution management. Configure a Maven server named `github` in `~/.m2/settings.xml`, then run:
+
+```bash
+mvn -DskipTests deploy
+```
 
 ## Semantic MCP Skills
 

@@ -19,6 +19,8 @@ import com.c8software.spring.ai.core.idempotency.IdempotencyStore;
 import com.c8software.spring.ai.core.idempotency.InMemoryIdempotencyStore;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.c8software.spring.ai.core.security.PermissionChecker;
+import com.c8software.spring.ai.core.security.DefaultResultMasker;
+import com.c8software.spring.ai.core.security.ResultMasker;
 import com.c8software.spring.ai.core.security.SensitiveMasker;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +42,8 @@ public class DefaultToolExecutor implements ToolExecutor {
     private final ToolApprovalManager approvalManager;
     private final IdempotencyStore idempotencyStore;
     private final IdempotencyKeyResolver idempotencyKeyResolver;
+    private final ToolInvocationExecutor invocationExecutor;
+    private final ResultMasker resultMasker;
 
     public DefaultToolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
                                SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
@@ -60,6 +64,17 @@ public class DefaultToolExecutor implements ToolExecutor {
                                ObjectMapper objectMapper, AiToolProperties properties,
                                ToolApprovalManager approvalManager, IdempotencyStore idempotencyStore,
                                IdempotencyKeyResolver idempotencyKeyResolver) {
+        this(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper, properties,
+                approvalManager, idempotencyStore, idempotencyKeyResolver,
+                new TimeoutToolInvocationExecutor(), new DefaultResultMasker(sensitiveMasker));
+    }
+
+    public DefaultToolExecutor(ToolRegistry registry, PermissionChecker permissionChecker,
+                               SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
+                               ObjectMapper objectMapper, AiToolProperties properties,
+                               ToolApprovalManager approvalManager, IdempotencyStore idempotencyStore,
+                               IdempotencyKeyResolver idempotencyKeyResolver,
+                               ToolInvocationExecutor invocationExecutor, ResultMasker resultMasker) {
         this.registry = registry;
         this.permissionChecker = permissionChecker;
         this.sensitiveMasker = sensitiveMasker;
@@ -69,6 +84,8 @@ public class DefaultToolExecutor implements ToolExecutor {
         this.approvalManager = approvalManager;
         this.idempotencyStore = idempotencyStore;
         this.idempotencyKeyResolver = idempotencyKeyResolver;
+        this.invocationExecutor = invocationExecutor;
+        this.resultMasker = resultMasker;
     }
 
     public ToolResult execute(String toolName, String jsonArguments, ExecutionContext executionContext) {
@@ -95,7 +112,7 @@ public class DefaultToolExecutor implements ToolExecutor {
                         cost, "IDEMPOTENT_HIT", null, beforeSnapshot);
                 return cached;
             }
-            Object data = definition.getMethodHandle().bindTo(definition.getTargetBean()).invokeWithArguments(args);
+            Object data = resultMasker.mask(definition, invocationExecutor.invoke(definition, args));
             long cost = System.currentTimeMillis() - start;
             ToolResult result = ToolResult.success(data, cost);
             storeResult(definition, idempotencyKey, result);

@@ -96,6 +96,28 @@ If the framework is published to your internal Maven repository, add the starter
 
 The starter pulls in `adapter-core` and registers auto-configuration. For source-based development, you can also depend on `adapter-core` directly.
 
+### 5.1.1 GitHub Packages Publishing
+
+The root POM is configured for GitHub Packages. Configure a Maven server named `github` in `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>github</id>
+      <username>YOUR_GITHUB_USERNAME</username>
+      <password>YOUR_GITHUB_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+```
+
+Publish with:
+
+```bash
+mvn -DskipTests deploy
+```
+
 ### 5.2 Enable Auto Configuration
 
 The starter loads the default auto-configuration:
@@ -140,6 +162,32 @@ public class OrderAiTools {
     }
 }
 ```
+
+### 5.4 Timeout Isolation
+
+Tool calls are invoked through `ToolInvocationExecutor`. The default `TimeoutToolInvocationExecutor` runs business methods in a worker thread and releases the caller when `ToolMetadata.timeoutMillis` is exceeded.
+
+```yaml
+ai:
+  tool:
+    default-timeout-millis: 10000
+```
+
+Timeout failures use `AiToolExecutionException` with error code `AIT_EXEC_TIMEOUT`.
+
+### 5.5 Return-Value Masking
+
+Use method-level `@AiToolSensitive` when the whole result is sensitive:
+
+```java
+@AiTool(name = "query_user_mobile", description = "Query user mobile")
+@AiToolSensitive(type = SensitiveType.MOBILE)
+public String queryUserMobile(Long userId) {
+    return "13812345678";
+}
+```
+
+The masked value is returned in `ToolResult` and used for audit output hashing.
 
 Guidelines:
 

@@ -21,15 +21,16 @@ Core areas:
 3. schema generation
 4. execution engine
 5. permission control
-6. sensitive data masking
+6. input and return-value sensitive data masking
 7. audit logging
 8. session and context
 9. task orchestration
 10. multi-model schema adapters
 11. semantic MCP provisioning
 12. Codex skill for existing systems
-13. P0 enterprise governance: persistent audit, approval, idempotency, and visibility filtering
+13. P0 enterprise governance: persistent audit, approval, idempotency, visibility filtering, timeout isolation, and return masking
 14. Spring Boot Starter auto-configuration
+15. Maven publishing metadata
 
 ## 1.1 Spring Boot Starter
 
@@ -183,12 +184,35 @@ Execution steps:
 4. Check permission.
 5. Request high-risk approval.
 6. Check idempotency hit.
-7. Mask sensitive values.
-8. Invoke business method through `MethodHandle`.
-9. Store idempotent result.
-10. Produce `ToolResult`.
-11. Write audit record.
-12. Wrap exceptions.
+7. Mask sensitive input values.
+8. Invoke business method through `ToolInvocationExecutor`.
+9. Mask sensitive return values through `ResultMasker`.
+10. Store idempotent result.
+11. Produce `ToolResult`.
+12. Write audit record.
+13. Wrap exceptions.
+
+## 5.1 Timeout Isolation
+
+`ToolInvocationExecutor` is the SPI for isolating real business method execution.
+
+Default implementation:
+
+```java
+TimeoutToolInvocationExecutor
+```
+
+The default executor runs the business method in a worker thread, waits up to `ToolMetadata.timeoutMillis`, cancels the `Future` on timeout, and throws `AiToolExecutionException` with error code `AIT_EXEC_TIMEOUT`.
+
+Configuration:
+
+```yaml
+ai:
+  tool:
+    default-timeout-millis: 10000
+```
+
+Production deployments can replace this SPI with a tenant-aware thread pool, queue-based execution, remote sandbox, circuit breaker, or resource limiter.
 
 ## 6. Permission Control
 
@@ -236,7 +260,17 @@ Sensitive types:
 - `OPERATOR_ID`
 - `CUSTOM`
 
-Current masking applies to audit input summaries. Return-value masking can be added through the same SPI boundary.
+Input masking is driven by parameter-level `@AiToolSensitive`. Return-value masking is driven by method-level `@AiToolSensitive`:
+
+```java
+@AiTool(name = "query_mobile", description = "Query mobile")
+@AiToolSensitive(type = SensitiveType.MOBILE)
+public String queryMobile(Long userId) {
+    return "13812345678";
+}
+```
+
+Method-level sensitivity is stored in `ToolMetadata.resultSensitiveType`. `DefaultResultMasker` masks the value before it enters `ToolResult` and audit output hashing. Production deployments can replace `ResultMasker` for object field-level masking.
 
 ## 8. Audit Logging
 

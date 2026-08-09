@@ -13,7 +13,9 @@ import com.c8software.spring.ai.core.context.DefaultUserChoiceTracker;
 import com.c8software.spring.ai.core.context.InMemoryConversationSessionStore;
 import com.c8software.spring.ai.core.context.UserChoiceTracker;
 import com.c8software.spring.ai.core.execution.DefaultToolExecutor;
+import com.c8software.spring.ai.core.execution.TimeoutToolInvocationExecutor;
 import com.c8software.spring.ai.core.execution.ToolExecutor;
+import com.c8software.spring.ai.core.execution.ToolInvocationExecutor;
 import com.c8software.spring.ai.core.idempotency.DefaultIdempotencyKeyResolver;
 import com.c8software.spring.ai.core.idempotency.IdempotencyKeyResolver;
 import com.c8software.spring.ai.core.idempotency.IdempotencyStore;
@@ -29,8 +31,10 @@ import com.c8software.spring.ai.core.registry.DefaultToolGovernanceAnnotationPro
 import com.c8software.spring.ai.core.registry.ToolGovernanceAnnotationProcessor;
 import com.c8software.spring.ai.core.registry.ToolRegistry;
 import com.c8software.spring.ai.core.security.DefaultPermissionChecker;
+import com.c8software.spring.ai.core.security.DefaultResultMasker;
 import com.c8software.spring.ai.core.security.DefaultSensitiveMasker;
 import com.c8software.spring.ai.core.security.PermissionChecker;
+import com.c8software.spring.ai.core.security.ResultMasker;
 import com.c8software.spring.ai.core.security.SensitiveMasker;
 import com.c8software.spring.ai.core.orchestration.HumanInTheLoop;
 import com.c8software.spring.ai.core.visibility.DefaultToolVisibilityFilter;
@@ -78,6 +82,12 @@ public class AiToolAutoConfiguration {
     @ConditionalOnMissingBean
     public SensitiveMasker sensitiveMasker() {
         return new DefaultSensitiveMasker();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ResultMasker resultMasker(SensitiveMasker sensitiveMasker) {
+        return new DefaultResultMasker(sensitiveMasker);
     }
 
     @Bean
@@ -151,6 +161,12 @@ public class AiToolAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ToolInvocationExecutor toolInvocationExecutor() {
+        return new TimeoutToolInvocationExecutor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public McpCapabilityCatalog mcpCapabilityCatalog() {
         return new InMemoryMcpCapabilityCatalog();
     }
@@ -173,8 +189,9 @@ public class AiToolAutoConfiguration {
                                      SensitiveMasker sensitiveMasker, AuditLogger auditLogger,
                                      ObjectMapper objectMapper, AiToolProperties properties,
                                      ToolApprovalManager approvalManager, IdempotencyStore idempotencyStore,
-                                     IdempotencyKeyResolver idempotencyKeyResolver) {
+                                     IdempotencyKeyResolver idempotencyKeyResolver,
+                                     ToolInvocationExecutor invocationExecutor, ResultMasker resultMasker) {
         return new DefaultToolExecutor(registry, permissionChecker, sensitiveMasker, auditLogger, objectMapper,
-                properties, approvalManager, idempotencyStore, idempotencyKeyResolver);
+                properties, approvalManager, idempotencyStore, idempotencyKeyResolver, invocationExecutor, resultMasker);
     }
 }

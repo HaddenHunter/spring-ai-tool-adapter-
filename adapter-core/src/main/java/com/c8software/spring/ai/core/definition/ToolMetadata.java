@@ -18,6 +18,7 @@ public final class ToolMetadata {
     private final String rollbackMethod;
     private final String contextKey;
     private final boolean contextConfirmed;
+    private final String resultSensitiveType;
     private final boolean enabled;
     private final long timeoutMillis;
     private final Map<String, String> attributes;
@@ -35,6 +36,7 @@ public final class ToolMetadata {
         this.rollbackMethod = builder.rollbackMethod;
         this.contextKey = builder.contextKey;
         this.contextConfirmed = builder.contextConfirmed;
+        this.resultSensitiveType = builder.resultSensitiveType;
         this.enabled = builder.enabled;
         this.timeoutMillis = builder.timeoutMillis;
         this.attributes = Collections.unmodifiableMap(new LinkedHashMap<String, String>(builder.attributes));
@@ -105,6 +107,11 @@ public final class ToolMetadata {
         return contextConfirmed;
     }
 
+    /** Returns sensitive type for the whole result when present. */
+    public String getResultSensitiveType() {
+        return resultSensitiveType;
+    }
+
     /** Returns whether enabled. */
     public boolean isEnabled() {
         return enabled;
@@ -134,6 +141,7 @@ public final class ToolMetadata {
         private String rollbackMethod = "";
         private String contextKey = "";
         private boolean contextConfirmed;
+        private String resultSensitiveType = "";
         private boolean enabled = true;
         private long timeoutMillis = 10000L;
         private final Map<String, String> attributes = new LinkedHashMap<String, String>();
@@ -195,6 +203,11 @@ public final class ToolMetadata {
 
         public Builder contextConfirmed(boolean contextConfirmed) {
             this.contextConfirmed = contextConfirmed;
+            return this;
+        }
+
+        public Builder resultSensitiveType(String resultSensitiveType) {
+            this.resultSensitiveType = resultSensitiveType == null ? "" : resultSensitiveType;
             return this;
         }
 

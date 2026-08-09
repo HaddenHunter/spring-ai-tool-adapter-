@@ -7,6 +7,7 @@ import com.c8software.spring.ai.core.annotation.AiToolIdempotent;
 import com.c8software.spring.ai.core.annotation.AiToolRequiresPermission;
 import com.c8software.spring.ai.core.annotation.AiToolRiskLevel;
 import com.c8software.spring.ai.core.annotation.AiToolRollback;
+import com.c8software.spring.ai.core.annotation.AiToolSensitive;
 import com.c8software.spring.ai.core.annotation.AiToolVersion;
 import com.c8software.spring.ai.core.annotation.AiToolVisibility;
 import com.c8software.spring.ai.core.annotation.Rollbackable;
@@ -26,6 +27,7 @@ public class DefaultToolGovernanceAnnotationProcessor implements ToolGovernanceA
         AiToolVisibility visibility = method.getAnnotation(AiToolVisibility.class);
         AiToolVersion version = method.getAnnotation(AiToolVersion.class);
         AiToolContextKey contextKey = method.getAnnotation(AiToolContextKey.class);
+        AiToolSensitive resultSensitive = method.getAnnotation(AiToolSensitive.class);
 
         builder.requiresPermission(permission == null ? aiTool.requiresPermission() : permission.value());
         builder.auditLevel(audit == null ? aiTool.auditLevel().name() : audit.value().name());
@@ -48,6 +50,9 @@ public class DefaultToolGovernanceAnnotationProcessor implements ToolGovernanceA
         }
         if (contextKey != null) {
             builder.contextKey(contextKey.store()).contextConfirmed(contextKey.confirmed());
+        }
+        if (resultSensitive != null) {
+            builder.resultSensitiveType(resultSensitive.type().name());
         }
         return builder;
     }
