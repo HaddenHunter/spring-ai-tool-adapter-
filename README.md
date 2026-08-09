@@ -66,6 +66,11 @@ Use `spring-ai-tool-adapter-spring-ai` when an application already uses Spring A
 
 Use `adapter-agent-harness` for Java-native v2 workflows with phases, steps, checkpoints, artifacts, review gates, repair loops, and human waiting nodes. It can invoke governed tools through `ToolAgentStepExecutor` and keeps AgentWeaver-style harness ideas as Java contracts.
 
+Demo UI supports both English and Chinese:
+
+- English: `/chat?promo=agentweaver&state=completed`
+- Chinese: `/chat?lang=zh&promo=agentweaver&state=completed`
+
 ![AgentWeaver-compatible demo UI](docs/agentweaver-demo-promo.png)
 
 ### Demo State Gallery
@@ -77,6 +82,10 @@ Use `adapter-agent-harness` for Java-native v2 workflows with phases, steps, che
 | Completed | Audit Review |
 | --- | --- |
 | ![Agent completed](docs/agentweaver-demo-completed.png) | ![Agent audit review](docs/agentweaver-demo-audit.png) |
+
+| Chinese Completed |
+| --- |
+| ![Agent Chinese completed](docs/agentweaver-demo-zh-completed.png) |
 
 ## Codex Skill for Existing Systems
 

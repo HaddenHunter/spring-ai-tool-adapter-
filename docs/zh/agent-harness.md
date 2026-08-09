@@ -149,12 +149,17 @@ UI 会展示：
 | --- | --- |
 | ![Agent completed](../agentweaver-demo-completed.png) | ![Agent audit review](../agentweaver-demo-audit.png) |
 
+中文界面截图：
+
+![Agent Chinese completed](../agentweaver-demo-zh-completed.png)
+
 截图入口：
 
 - `/chat?promo=agentweaver&state=running`
 - `/chat?promo=agentweaver&state=waiting`
 - `/chat?promo=agentweaver&state=completed`
 - `/chat?promo=agentweaver&state=audit`
+- `/chat?lang=zh&promo=agentweaver&state=completed`
 
 ## 下一步
 

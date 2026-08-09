@@ -100,73 +100,76 @@
   <section class="panel conversation">
     <div class="panel-head">
       <div>
-        <h1>AI Tool Workbench</h1>
-        <span class="muted">Conversation, tool calls, governance, and debug trace</span>
+        <h1 id="appTitle">AI Tool Workbench</h1>
+        <span id="appSubtitle" class="muted">Conversation, tool calls, governance, and debug trace</span>
       </div>
-      <button class="ghost" onclick="refreshAll()">Refresh</button>
+      <div style="display:flex;gap:8px">
+        <button id="languageToggle" class="ghost" onclick="toggleLanguage()">中文</button>
+        <button id="refreshButton" class="ghost" onclick="refreshAll()">Refresh</button>
+      </div>
     </div>
     <div id="messages" class="messages">
-      <div class="message">Ready. Pick a tool, adjust arguments, then run it from the composer.</div>
+      <div id="readyMessage" class="message">Ready. Pick a tool, adjust arguments, then run it from the composer.</div>
     </div>
     <div class="composer">
-      <label for="tool">Tool</label>
+      <label id="toolLabel" for="tool">Tool</label>
       <select id="tool" onchange="syncArgumentTemplate()"></select>
-      <label for="args">Arguments JSON</label>
+      <label id="argsLabel" for="args">Arguments JSON</label>
       <textarea id="args">{}</textarea>
       <div class="composer-row">
         <input id="userInput" value="Run the selected tool with these arguments">
-        <button onclick="send()">Run Tool</button>
+        <button id="runToolButton" onclick="send()">Run Tool</button>
       </div>
     </div>
   </section>
 
   <section class="panel task-visual">
     <div class="panel-head">
-      <h2>Current Task</h2>
+      <h2 id="currentTaskTitle">Current Task</h2>
       <span id="taskStatus" class="status ready">READY</span>
     </div>
     <div class="panel-body">
       <div class="flow">
-        <div class="node"><b>Entry Layer</b><span id="nodeInput" class="status ready">READY</span></div>
+        <div class="node"><b id="entryLayerLabel">Entry Layer</b><span id="nodeInput" class="status ready">READY</span></div>
         <div class="connector"></div>
-        <div class="node"><b>AI Hub</b><span id="nodeTool" class="status ready">WAITING</span></div>
+        <div class="node"><b id="aiHubLabel">AI Hub</b><span id="nodeTool" class="status ready">WAITING</span></div>
         <div class="connector"></div>
-        <div class="node"><b>Tool Adapter</b><span id="nodeAudit" class="status ready">WAITING</span></div>
+        <div class="node"><b id="toolAdapterLabel">Tool Adapter</b><span id="nodeAudit" class="status ready">WAITING</span></div>
         <div class="connector"></div>
-        <div class="node"><b>Business System</b><span id="nodeResult" class="status ready">WAITING</span></div>
+        <div class="node"><b id="businessSystemLabel">Business System</b><span id="nodeResult" class="status ready">WAITING</span></div>
       </div>
       <div class="node-grid">
-        <div class="node-row"><span>Session</span><b id="sessionId">demo-session</b></div>
-        <div class="node-row"><span>Selected Tool</span><b id="selectedTool">-</b></div>
-        <div class="node-row"><span>Last Cost</span><b id="lastCost">0 ms</b></div>
-        <div class="node-row"><span>Last Status</span><b id="lastStatus">idle</b></div>
+        <div class="node-row"><span id="sessionLabel">Session</span><b id="sessionId">demo-session</b></div>
+        <div class="node-row"><span id="selectedToolLabel">Selected Tool</span><b id="selectedTool">-</b></div>
+        <div class="node-row"><span id="lastCostLabel">Last Cost</span><b id="lastCost">0 ms</b></div>
+        <div class="node-row"><span id="lastStatusLabel">Last Status</span><b id="lastStatus">idle</b></div>
       </div>
     </div>
   </section>
 
   <aside class="panel governance">
     <div class="panel-head">
-      <h2>Governance</h2>
-      <span class="status done">ACTIVE</span>
+      <h2 id="governanceTitle">Governance</h2>
+      <span id="governanceActiveStatus" class="status done">ACTIVE</span>
     </div>
     <div class="panel-body">
-      <div class="stat"><span>Current User</span><b id="currentUser">-</b></div>
-      <div class="stat"><span>Tenant</span><b id="tenantId">-</b></div>
-      <div class="stat"><span>v0 Status</span><b id="v0Status">-</b></div>
-      <div class="stat"><span>v1 Status</span><b id="v1Status">-</b></div>
-      <div class="stat"><span>v3 Status</span><b id="v3Status">-</b></div>
-      <div class="stat"><span>Token Usage</span><b id="tokenText">0 / 0</b></div>
+      <div class="stat"><span id="currentUserLabel">Current User</span><b id="currentUser">-</b></div>
+      <div class="stat"><span id="tenantLabel">Tenant</span><b id="tenantId">-</b></div>
+      <div class="stat"><span id="v0StatusLabel">v0 Status</span><b id="v0Status">-</b></div>
+      <div class="stat"><span id="v1StatusLabel">v1 Status</span><b id="v1Status">-</b></div>
+      <div class="stat"><span id="v3StatusLabel">v3 Status</span><b id="v3Status">-</b></div>
+      <div class="stat"><span id="tokenUsageLabel">Token Usage</span><b id="tokenText">0 / 0</b></div>
       <div class="token-bar"><div id="tokenFill" class="token-fill"></div></div>
-      <h3 style="margin-top:16px">Permission Scopes</h3>
+      <h3 id="permissionScopesTitle" style="margin-top:16px">Permission Scopes</h3>
       <div id="scopes"></div>
-      <h3 style="margin-top:16px">Available Tools</h3>
+      <h3 id="availableToolsTitle" style="margin-top:16px">Available Tools</h3>
       <div id="tools" class="tool-list"></div>
     </div>
   </aside>
 
   <section class="panel debug">
     <div class="panel-head">
-      <h2>Debug / Developer Mode</h2>
+      <h2 id="debugTitle">Debug / Developer Mode</h2>
       <div class="tabs">
         <button id="tabPrompt" class="active" onclick="showDebug('prompt')">Prompt</button>
         <button id="tabSchema" onclick="showDebug('schema')">Tool Schema</button>
@@ -179,8 +182,8 @@
     </div>
     <div class="debug-body">
       <div id="auditBanner" class="audit-banner">
-        <b>Audit Review Evidence</b>
-        Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.
+        <b id="auditBannerTitle">Audit Review Evidence</b>
+        <span id="auditBannerText">Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.</span>
       </div>
       <div id="agentActions" class="agent-actions">
         <div class="agent-hero">
@@ -189,8 +192,8 @@
             <span id="agentPromoSubtitle">Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.</span>
           </div>
           <div class="agent-buttons">
-            <button onclick="startAgent()">Start Agent</button>
-            <button class="secondary" onclick="resumeAgent()">Resume</button>
+            <button id="startAgentButton" onclick="startAgent()">Start Agent</button>
+            <button id="resumeAgentButton" class="secondary" onclick="resumeAgent()">Resume</button>
           </div>
         </div>
       </div>
@@ -201,6 +204,170 @@
 </main>
 
 <script>
+const pageParams = new URLSearchParams(window.location.search);
+let locale = pageParams.get('lang') === 'zh' ? 'zh' : 'en';
+const I18N = {
+  en: {
+    title: 'Spring AI Tool Adapter Demo',
+    appTitle: 'AI Tool Workbench',
+    appSubtitle: 'Conversation, tool calls, governance, and debug trace',
+    languageToggle: '中文',
+    refreshButton: 'Refresh',
+    readyMessage: 'Ready. Pick a tool, adjust arguments, then run it from the composer.',
+    toolLabel: 'Tool',
+    argsLabel: 'Arguments JSON',
+    userInput: 'Run the selected tool with these arguments',
+    runToolButton: 'Run Tool',
+    currentTaskTitle: 'Current Task',
+    entryLayerLabel: 'Entry Layer',
+    aiHubLabel: 'AI Hub',
+    toolAdapterLabel: 'Tool Adapter',
+    businessSystemLabel: 'Business System',
+    sessionLabel: 'Session',
+    selectedToolLabel: 'Selected Tool',
+    lastCostLabel: 'Last Cost',
+    lastStatusLabel: 'Last Status',
+    governanceTitle: 'Governance',
+    currentUserLabel: 'Current User',
+    tenantLabel: 'Tenant',
+    v0StatusLabel: 'v0 Status',
+    v1StatusLabel: 'v1 Status',
+    v2StatusLabel: 'v2 Status',
+    v3StatusLabel: 'v3 Status',
+    tokenUsageLabel: 'Token Usage',
+    permissionScopesTitle: 'Permission Scopes',
+    availableToolsTitle: 'Available Tools',
+    debugTitle: 'Debug / Developer Mode',
+    tabPrompt: 'Prompt',
+    tabSchema: 'Tool Schema',
+    tabAudit: 'Audit Logs',
+    tabReplay: 'Replay',
+    tabAgent: 'Agent',
+    tabMarket: 'Market',
+    tabFeedback: 'Feedback',
+    auditBannerTitle: 'Audit Review Evidence',
+    auditBannerText: 'Tool calls, context snapshots, artifacts, checkpoints, and approval boundaries are available for replay.',
+    agentPromoTitle: 'AgentWeaver Flow, Spring Governance',
+    agentPromoSubtitle: 'Run declarative agent workflows through audited Java tools, checkpoints, artifacts, and human approval.',
+    startAgentButton: 'Start Agent',
+    resumeAgentButton: 'Resume',
+    runtime: 'Runtime',
+    mode: 'Mode',
+    runStatus: 'Run Status',
+    artifacts: 'Artifacts',
+    checkpoints: 'Checkpoints',
+    noArtifacts: 'No artifact yet. Start the flow to collect tool outputs.',
+    noCheckpoints: 'No checkpoint yet. Human and tool steps will appear here.',
+    group: 'group',
+    audit: 'audit',
+    agentCompatibility: 'AgentWeaver Compatibility',
+    sampleFlow: 'Sample Flow Spec',
+    runState: 'Run State',
+    runStateActive: 'Use Resume or Start Agent to refresh.',
+    runStateEmpty: 'No run started.',
+    run: 'Run',
+    status: 'Status',
+    currentPhase: 'Current Phase',
+    currentStep: 'Current Step',
+    completed: 'Completed',
+    flow: 'Flow'
+  },
+  zh: {
+    title: 'Spring AI 工具适配器演示',
+    appTitle: 'AI 工具工作台',
+    appSubtitle: '对话、工具调用、治理与调试轨迹',
+    languageToggle: 'English',
+    refreshButton: '刷新',
+    readyMessage: '已就绪。选择工具、调整参数，然后在输入区执行。',
+    toolLabel: '工具',
+    argsLabel: '参数 JSON',
+    userInput: '使用这些参数执行当前工具',
+    runToolButton: '执行工具',
+    currentTaskTitle: '当前任务',
+    entryLayerLabel: '对话入口层',
+    aiHubLabel: 'AI 业务中枢',
+    toolAdapterLabel: '工具适配器',
+    businessSystemLabel: '业务系统',
+    sessionLabel: '会话',
+    selectedToolLabel: '已选工具',
+    lastCostLabel: '最近耗时',
+    lastStatusLabel: '最近状态',
+    governanceTitle: '治理面板',
+    currentUserLabel: '当前用户',
+    tenantLabel: '租户',
+    v0StatusLabel: 'v0 状态',
+    v1StatusLabel: 'v1 状态',
+    v2StatusLabel: 'v2 状态',
+    v3StatusLabel: 'v3 状态',
+    tokenUsageLabel: 'Token 消耗',
+    permissionScopesTitle: '权限范围',
+    availableToolsTitle: '可用工具',
+    debugTitle: '调试 / 开发者模式',
+    tabPrompt: 'Prompt',
+    tabSchema: 'Tool Schema',
+    tabAudit: '审计日志',
+    tabReplay: '回放',
+    tabAgent: 'Agent',
+    tabMarket: '市场',
+    tabFeedback: '反馈',
+    auditBannerTitle: '审计审核证据',
+    auditBannerText: '工具调用、上下文快照、产物、检查点和审批边界都可用于回放。',
+    agentPromoTitle: 'AgentWeaver Flow，Spring 治理',
+    agentPromoSubtitle: '用经过审计的 Java 工具、检查点、产物和人工审批执行声明式 Agent 工作流。',
+    startAgentButton: '启动 Agent',
+    resumeAgentButton: '继续执行',
+    runtime: '运行时',
+    mode: '模式',
+    runStatus: '运行状态',
+    artifacts: '产物',
+    checkpoints: '检查点',
+    noArtifacts: '暂无产物。启动 Flow 后会收集工具输出。',
+    noCheckpoints: '暂无检查点。人工节点和工具步骤会显示在这里。',
+    group: '分组',
+    audit: '审计',
+    agentCompatibility: 'AgentWeaver 兼容能力',
+    sampleFlow: '示例 Flow 规格',
+    runState: '运行状态',
+    runStateActive: '使用继续执行或启动 Agent 来刷新。',
+    runStateEmpty: '尚未启动运行。',
+    run: '运行',
+    status: '状态',
+    currentPhase: '当前 Phase',
+    currentStep: '当前 Step',
+    completed: '已完成',
+    flow: 'Flow'
+  }
+};
+const STATUS_TEXT = {
+  zh: {
+    READY: '就绪',
+    WAITING: '等待中',
+    RUNNING: '执行中',
+    DONE: '完成',
+    COMPLETED: '已完成',
+    ACTIVE: '启用',
+    COMPLETE: '已完成',
+    BASELINE: '基线版',
+    SUCCESS: '成功',
+    ERROR: '错误',
+    idle: '空闲',
+    success: '成功',
+    failed: '失败'
+  }
+};
+const NAME_TEXT = {
+  zh: {
+    'AgentWeaver Governed Refund Flow': 'AgentWeaver 治理退款流程',
+    'Collect Customer Context': '采集客户上下文',
+    'Query Balance': '查询余额',
+    'Human Approval': '人工审批',
+    'Execute Governed Action': '执行受治理动作',
+    'Query External Signal': '查询外部信号',
+    'Review Artifacts': '审核产物',
+    'Java native Agent Harness': 'Java 原生 Agent Harness',
+    'AgentWeaver compatible': 'AgentWeaver 兼容模式'
+  }
+};
 let tools = [];
 let currentAgentRunId = '';
 let currentAgentSpec = '';
@@ -208,6 +375,48 @@ let agentWeaverInfo = {};
 let debugCache = {prompt:'', schema:'', audit:'', replay:'', agent:'', market:'', feedback:''};
 
 function pretty(value){ return JSON.stringify(value, null, 2); }
+function t(key){ return (I18N[locale] && I18N[locale][key]) || I18N.en[key] || key; }
+function setText(id, key){
+  const el = document.getElementById(id);
+  if (el) el.textContent = t(key);
+}
+function statusText(value){ return (STATUS_TEXT[locale] && STATUS_TEXT[locale][value]) || value; }
+function nameText(value){ return (NAME_TEXT[locale] && NAME_TEXT[locale][value]) || value; }
+function toggleLanguage(){
+  const params = new URLSearchParams(window.location.search);
+  params.set('lang', locale === 'zh' ? 'en' : 'zh');
+  window.location.search = params.toString();
+}
+function setStatusClassText(id, rawText){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.rawStatus = rawText;
+  el.textContent = statusText(rawText);
+  el.className = `status ${rawText === 'RUNNING' || rawText === 'WAITING' ? 'running' : rawText === 'DONE' || rawText === 'COMPLETED' ? 'done' : 'ready'}`;
+}
+function applyLocale(){
+  document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+  document.title = t('title');
+  [
+    'appTitle','appSubtitle','languageToggle','refreshButton','readyMessage','toolLabel','argsLabel',
+    'runToolButton','currentTaskTitle','entryLayerLabel','aiHubLabel','toolAdapterLabel','businessSystemLabel',
+    'sessionLabel','selectedToolLabel','lastCostLabel','lastStatusLabel','governanceTitle','currentUserLabel',
+    'tenantLabel','v0StatusLabel','v1StatusLabel','v3StatusLabel','tokenUsageLabel','permissionScopesTitle',
+    'availableToolsTitle','debugTitle','tabPrompt','tabSchema','tabAudit','tabReplay','tabAgent','tabMarket',
+    'tabFeedback','auditBannerTitle','auditBannerText','startAgentButton','resumeAgentButton'
+  ].forEach(id => setText(id, id));
+  const userInput = document.getElementById('userInput');
+  if (userInput) userInput.value = t('userInput');
+  const active = document.getElementById('governanceActiveStatus');
+  if (active) active.textContent = statusText('ACTIVE');
+  setStatusClassText('taskStatus', 'READY');
+  setStatusClassText('nodeInput', 'READY');
+  setStatusClassText('nodeTool', 'WAITING');
+  setStatusClassText('nodeAudit', 'WAITING');
+  setStatusClassText('nodeResult', 'WAITING');
+  const lastStatus = document.getElementById('lastStatus');
+  if (lastStatus) lastStatus.textContent = statusText('idle');
+}
 
 async function refreshAll(){
   await Promise.all([loadTools(), loadGovernance(), loadV0Status(), loadV1Status(), loadV2Status(), loadV3Status(), loadDebug()]);
@@ -218,11 +427,11 @@ async function loadTools(){
   tools = await fetch('/api/tools').then(r=>r.json());
   const toolSelect = document.getElementById('tool');
   toolSelect.innerHTML = tools.map(t=>`<option value="${t.name}">${t.name}</option>`).join('');
-  document.getElementById('tools').innerHTML = tools.map(t=>`
+  document.getElementById('tools').innerHTML = tools.map(tool=>`
     <div class="tool-item">
-      <b>${t.name}</b>
-      <span>${t.description}</span>
-      <span>group: ${t.group || 'default'} | audit: ${t.auditLevel || 'NORMAL'}</span>
+      <b>${tool.name}</b>
+      <span>${tool.description}</span>
+      <span>${t('group')}: ${tool.group || 'default'} | ${t('audit')}: ${tool.auditLevel || 'NORMAL'}</span>
     </div>`).join('');
   syncArgumentTemplate();
 }
@@ -238,12 +447,12 @@ async function loadGovernance(){
 
 async function loadV0Status(){
   const data = await fetch('/api/v0/status').then(r=>r.json());
-  document.getElementById('v0Status').textContent = data.status;
+  document.getElementById('v0Status').textContent = statusText(data.status);
 }
 
 async function loadV1Status(){
   const data = await fetch('/api/v1/status').then(r=>r.json());
-  document.getElementById('v1Status').textContent = data.status;
+  document.getElementById('v1Status').textContent = statusText(data.status);
 }
 
 async function loadV2Status(){
@@ -253,15 +462,16 @@ async function loadV2Status(){
     row = document.createElement('div');
     row.id = 'v2Row';
     row.className = 'stat';
-    row.innerHTML = '<span>v2 Status</span><b id="v2Status">-</b>';
+    row.innerHTML = '<span id="v2StatusLabel"></span><b id="v2Status">-</b>';
     document.getElementById('v1Status').parentElement.insertAdjacentElement('afterend', row);
   }
-  document.getElementById('v2Status').textContent = data.status;
+  setText('v2StatusLabel', 'v2StatusLabel');
+  document.getElementById('v2Status').textContent = statusText(data.status);
 }
 
 async function loadV3Status(){
   const data = await fetch('/api/v3/status').then(r=>r.json());
-  document.getElementById('v3Status').textContent = data.status;
+  document.getElementById('v3Status').textContent = statusText(data.status);
 }
 
 async function loadDebug(){
@@ -282,9 +492,9 @@ async function loadDebug(){
   debugCache.replay = pretty(replay);
   currentAgentSpec = sampleFlow.spec;
   agentWeaverInfo = agentWeaver;
-  document.getElementById('agentPromoTitle').textContent = agentWeaver.promotionTitle || 'AgentWeaver Flow, Spring Governance';
-  document.getElementById('agentPromoSubtitle').textContent = agentWeaver.promotionSubtitle || '';
-  debugCache.agent = `AgentWeaver Compatibility:\n${pretty(agentWeaver)}\n\nSample Flow Spec:\n\n${sampleFlow.spec}\n\nRun State:\n${currentAgentRunId ? 'Use Resume or Start Agent to refresh.' : 'No run started.'}`;
+  document.getElementById('agentPromoTitle').textContent = locale === 'zh' ? t('agentPromoTitle') : (agentWeaver.promotionTitle || t('agentPromoTitle'));
+  document.getElementById('agentPromoSubtitle').textContent = locale === 'zh' ? t('agentPromoSubtitle') : (agentWeaver.promotionSubtitle || t('agentPromoSubtitle'));
+  debugCache.agent = `${t('agentCompatibility')}:\n${pretty(agentWeaver)}\n\n${t('sampleFlow')}:\n\n${sampleFlow.spec}\n\n${t('runState')}:\n${currentAgentRunId ? t('runStateActive') : t('runStateEmpty')}`;
   renderAgentVisual(null);
   debugCache.market = pretty({prompts: prompts, tools: marketTools});
   debugCache.feedback = pretty(feedback);
@@ -324,31 +534,31 @@ function renderAgentVisual(data){
   const checkpoints = data && data.checkpoints ? data.checkpoints : [];
   const phaseCards = (flow.phases || []).map(phase => `
     <div class="agent-phase-card">
-      <div class="agent-phase-head"><span>${phase.name}</span><span class="status ${phase.id === (data && data.currentPhaseId) ? 'running' : 'ready'}">${phase.id}</span></div>
+      <div class="agent-phase-head"><span>${nameText(phase.name)}</span><span class="status ${phase.id === (data && data.currentPhaseId) ? 'running' : 'ready'}">${phase.id}</span></div>
       ${(phase.steps || []).map(step => {
         const stepState = completed.has(step.id) ? 'done' : current === step.id ? 'current' : '';
         return `<div class="agent-step ${stepState}">
           <i class="step-dot"></i>
-          <div><b>${step.name}</b><span class="muted">${step.toolName || step.id}</span></div>
+          <div><b>${nameText(step.name)}</b><span class="muted">${step.toolName || step.id}</span></div>
           <span class="agent-step-type">${step.type}</span>
         </div>`;
       }).join('')}
     </div>`).join('');
   container.innerHTML = `
     <div class="agent-strip">
-      <div class="agent-metric"><span>Runtime</span><b>${agentWeaverInfo.runtime || 'Java native Agent Harness'}</b></div>
-      <div class="agent-metric"><span>Mode</span><b>${agentWeaverInfo.mode || 'AgentWeaver compatible'}</b></div>
-      <div class="agent-metric"><span>Run Status</span><b>${status}</b></div>
+      <div class="agent-metric"><span>${t('runtime')}</span><b>${nameText(agentWeaverInfo.runtime || 'Java native Agent Harness')}</b></div>
+      <div class="agent-metric"><span>${t('mode')}</span><b>${nameText(agentWeaverInfo.mode || 'AgentWeaver compatible')}</b></div>
+      <div class="agent-metric"><span>${t('runStatus')}</span><b>${statusText(status)}</b></div>
     </div>
     <div class="agent-flow-board">${phaseCards}</div>
     <div class="agent-two-col">
       <div class="agent-list">
-        <h3>Artifacts</h3>
-        ${artifacts.length ? artifacts.map(a => `<div class="agent-list-item"><b>${a.stepId} / ${a.type}</b>${JSON.stringify(a.content)}</div>`).join('') : '<div class="agent-list-item">No artifact yet. Start the flow to collect tool outputs.</div>'}
+        <h3>${t('artifacts')}</h3>
+        ${artifacts.length ? artifacts.map(a => `<div class="agent-list-item"><b>${a.stepId} / ${a.type}</b>${JSON.stringify(a.content)}</div>`).join('') : `<div class="agent-list-item">${t('noArtifacts')}</div>`}
       </div>
       <div class="agent-list">
-        <h3>Checkpoints</h3>
-        ${checkpoints.length ? checkpoints.map(c => `<div class="agent-list-item"><b>${c.phaseId} / ${c.stepId}</b>${c.status} - ${c.createdAt}</div>`).join('') : '<div class="agent-list-item">No checkpoint yet. Human and tool steps will appear here.</div>'}
+        <h3>${t('checkpoints')}</h3>
+        ${checkpoints.length ? checkpoints.map(c => `<div class="agent-list-item"><b>${c.phaseId} / ${c.stepId}</b>${statusText(c.status)} - ${c.createdAt}</div>`).join('') : `<div class="agent-list-item">${t('noCheckpoints')}</div>`}
       </div>
     </div>`;
 }
@@ -357,26 +567,26 @@ function renderAgentRun(data){
   currentAgentRunId = data.runId || currentAgentRunId;
   const flow = data.flow ? pretty(data.flow) : '(flow supplied by current sample spec)';
   debugCache.agent = [
-    `Run: ${data.runId}`,
-    `Status: ${data.status}`,
-    `Current Phase: ${data.currentPhaseId || '-'}`,
-    `Current Step: ${data.currentStepId || '-'}`,
-    `Completed: ${(data.completedStepIds || []).join(', ') || '-'}`,
+    `${t('run')}: ${data.runId}`,
+    `${t('status')}: ${statusText(data.status)}`,
+    `${t('currentPhase')}: ${data.currentPhaseId || '-'}`,
+    `${t('currentStep')}: ${data.currentStepId || '-'}`,
+    `${t('completed')}: ${(data.completedStepIds || []).join(', ') || '-'}`,
     '',
-    'Flow:',
+    `${t('flow')}:`,
     flow,
     '',
-    'Checkpoints:',
+    `${t('checkpoints')}:`,
     pretty(data.checkpoints || []),
     '',
-    'Artifacts:',
+    `${t('artifacts')}:`,
     pretty(data.artifacts || [])
   ].join('\n');
   setStatus(data.status === 'COMPLETED' ? 'done' : (data.status === 'RUNNING' || data.status === 'WAITING') ? 'running' : 'ready');
-  document.getElementById('taskStatus').textContent = data.status || 'READY';
+  document.getElementById('taskStatus').textContent = statusText(data.status || 'READY');
   document.getElementById('taskStatus').className = `status ${data.status === 'COMPLETED' ? 'done' : data.status === 'RUNNING' || data.status === 'WAITING' ? 'running' : 'ready'}`;
   document.getElementById('sessionId').textContent = data.runId || 'demo-session';
-  document.getElementById('lastStatus').textContent = data.status || 'idle';
+  document.getElementById('lastStatus').textContent = statusText(data.status || 'idle');
   renderAgentVisual(data);
   showDebug('agent');
 }
@@ -463,7 +673,7 @@ function syncArgumentTemplate(){
 function setStatus(phase){
   const running = phase === 'running';
   const done = phase === 'done';
-  document.getElementById('taskStatus').textContent = running ? 'RUNNING' : done ? 'DONE' : 'READY';
+  document.getElementById('taskStatus').textContent = statusText(running ? 'RUNNING' : done ? 'DONE' : 'READY');
   document.getElementById('taskStatus').className = `status ${running ? 'running' : done ? 'done' : 'ready'}`;
   const statuses = new Array(
     ['nodeInput','READY'],
@@ -473,7 +683,7 @@ function setStatus(phase){
   );
   statuses.forEach(([id,text]) => {
       const el = document.getElementById(id);
-      el.textContent = text;
+      el.textContent = statusText(text);
       el.className = `status ${text === 'RUNNING' ? 'running' : text === 'DONE' ? 'done' : 'ready'}`;
     });
 }
@@ -507,18 +717,18 @@ async function send(){
   }).then(r=>r.json());
   addToolCard(toolName, res);
   document.getElementById('lastCost').textContent = `${res.result.costMs} ms`;
-  document.getElementById('lastStatus').textContent = res.result.success ? 'success' : 'failed';
+  document.getElementById('lastStatus').textContent = statusText(res.result.success ? 'success' : 'failed');
   setStatus('done');
   await loadDebug();
   showDebug('audit');
 }
 
 async function init(){
+  applyLocale();
   await refreshAll();
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('promo') === 'agentweaver') {
+  if (pageParams.get('promo') === 'agentweaver') {
     document.body.classList.add('promo-agent');
-    const state = params.get('state') || 'completed';
+    const state = pageParams.get('state') || 'completed';
     if (state === 'running') {
       renderAgentRun(promoRunningRun());
     } else if (state === 'waiting') {

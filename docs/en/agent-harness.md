@@ -149,12 +149,17 @@ State screenshots:
 | --- | --- |
 | ![Agent completed](../agentweaver-demo-completed.png) | ![Agent audit review](../agentweaver-demo-audit.png) |
 
+Chinese UI screenshot:
+
+![Agent Chinese completed](../agentweaver-demo-zh-completed.png)
+
 Screenshot routes:
 
 - `/chat?promo=agentweaver&state=running`
 - `/chat?promo=agentweaver&state=waiting`
 - `/chat?promo=agentweaver&state=completed`
 - `/chat?promo=agentweaver&state=audit`
+- `/chat?lang=zh&promo=agentweaver&state=completed`
 
 ## Next Steps
 
